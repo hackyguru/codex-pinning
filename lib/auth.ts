@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrivyClient } from '@privy-io/server-auth';
+import { PinningSecretService } from './pinningSecretService';
 
 // Initialize Privy client with your app credentials
 const privy = new PrivyClient(
@@ -10,6 +11,8 @@ const privy = new PrivyClient(
 export interface AuthenticatedUser {
   id: string;
   email: string;
+  authMethod: 'jwt' | 'pinning_secret';
+  pinningSecretId?: string;
 }
 
 export interface AuthenticatedRequest extends NextApiRequest {
@@ -35,7 +38,12 @@ export async function verifyAuth(
     // Extract the token
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     
-    // Verify the token with Privy
+    // Check if it's a pinning secret (starts with ts_ps_)
+    if (token.startsWith('ts_ps_')) {
+      return await verifyPinningSecret(token, req, res);
+    }
+    
+    // Otherwise, verify as JWT token with Privy
     const verifiedClaims = await privy.verifyAuthToken(token);
     
     // Get user ID from the verified claims
@@ -68,12 +76,62 @@ export async function verifyAuth(
 
     return {
       id: userId,
-      email: userEmail
+      email: userEmail,
+      authMethod: 'jwt'
     };
     
   } catch (error) {
     console.error('JWT verification error:', error);
     res.status(401).json({ error: 'Invalid or expired token' });
+    return null;
+  }
+}
+
+/**
+ * Verify pinning secret authentication
+ */
+async function verifyPinningSecret(
+  secret: string,
+  req: NextApiRequest,
+  res: NextApiResponse
+): Promise<AuthenticatedUser | null> {
+  try {
+    const validation = await PinningSecretService.validatePinningSecret(secret);
+    
+    if (!validation.isValid) {
+      res.status(401).json({ error: validation.error || 'Invalid pinning secret' });
+      return null;
+    }
+
+    // Check rate limit (now uses in-memory tracking)
+    const rateLimitResult = PinningSecretService.checkRateLimit(
+      validation.secretId!,
+      validation.rateLimitPerMinute!
+    );
+
+    if (!rateLimitResult.allowed) {
+      const resetInSeconds = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000);
+      res.status(429).json({
+        error: 'Rate limit exceeded',
+        message: `Too many requests. Try again in ${resetInSeconds} seconds.`,
+        rateLimitReset: rateLimitResult.resetTime,
+        rateLimitRemaining: rateLimitResult.remainingRequests
+      });
+      return null;
+    }
+
+    // Note: Usage tracking will be done in the actual endpoint with real bytes transferred
+
+    return {
+      id: validation.userId!,
+      email: `${validation.userId}@pinning-secret.placeholder`,
+      authMethod: 'pinning_secret',
+      pinningSecretId: validation.secretId!
+    };
+    
+  } catch (error) {
+    console.error('Pinning secret verification error:', error);
+    res.status(401).json({ error: 'Pinning secret validation failed' });
     return null;
   }
 }

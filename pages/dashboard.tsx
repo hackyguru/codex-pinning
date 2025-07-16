@@ -16,6 +16,19 @@ interface UploadedFile {
   originalId?: string; // For database files
 }
 
+interface PinningSecret {
+  id: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  rateLimitPerMinute: number;
+  monthlyQuotaGb: number | null;
+  usageThisMonth: number;
+  isActive: boolean;
+  lastUsed: string;
+  createdAt: string;
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const { ready, authenticated, user, logout, getAccessToken } = usePrivy();
@@ -25,6 +38,11 @@ export default function Dashboard() {
   const [isUploading, setIsUploading] = useState(false);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [databaseFiles, setDatabaseFiles] = useState<FileWithFormatted[]>([]);
+  const [pinningSecrets, setPinningSecrets] = useState<PinningSecret[]>([]);
+  const [showCreateSecret, setShowCreateSecret] = useState(false);
+  const [newSecretName, setNewSecretName] = useState('');
+  const [createdSecret, setCreatedSecret] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'files' | 'secrets'>('files');
 
   // Utility functions
   const getFileIcon = (contentType: string) => {
@@ -87,8 +105,90 @@ export default function Dashboard() {
         const filesData = await filesResponse.json();
         setDatabaseFiles(filesData.files);
       }
+
+      // Load pinning secrets
+      const secretsResponse = await fetch('/api/pinning-secrets/list', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (secretsResponse.ok) {
+        const secretsData = await secretsResponse.json();
+        setPinningSecrets(secretsData.secrets || []);
+      }
     } catch (error) {
       console.error('Error loading user data:', error);
+    }
+  };
+
+  // Create a new pinning secret
+  const createPinningSecret = async () => {
+    if (!newSecretName.trim()) {
+      alert('Please enter a name for the pinning secret');
+      return;
+    }
+
+    try {
+      const accessToken = await getAccessToken();
+      
+      const response = await fetch('/api/pinning-secrets/create', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newSecretName.trim(),
+          scopes: ['upload', 'download'],
+          rateLimitPerMinute: 100
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCreatedSecret(data.pinningSecret);
+        setNewSecretName('');
+        setShowCreateSecret(false);
+        await loadUserData(); // Refresh the list
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to create pinning secret');
+      }
+    } catch (error) {
+      console.error('Error creating pinning secret:', error);
+      alert('Failed to create pinning secret');
+    }
+  };
+
+  // Revoke a pinning secret
+  const revokePinningSecret = async (secretId: string) => {
+    if (!confirm('Are you sure you want to revoke this pinning secret? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const accessToken = await getAccessToken();
+      
+      const response = await fetch('/api/pinning-secrets/revoke', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ secretId }),
+      });
+
+      if (response.ok) {
+        await loadUserData(); // Refresh the list
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to revoke pinning secret');
+      }
+    } catch (error) {
+      console.error('Error revoking pinning secret:', error);
+      alert('Failed to revoke pinning secret');
     }
   };
 
@@ -520,12 +620,36 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Files List */}
+        {/* Tabs */}
         <div className="bg-white rounded-lg shadow-sm">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900">Your Files</h2>
+          <div className="border-b border-gray-200">
+            <nav className="flex space-x-8 px-6" aria-label="Tabs">
+              <button
+                onClick={() => setActiveTab('files')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'files'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Your Files
+              </button>
+              <button
+                onClick={() => setActiveTab('secrets')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'secrets'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Pinning Secrets
+              </button>
+            </nav>
           </div>
-          <div className="divide-y divide-gray-200">
+
+                    {/* Tab Content */}
+          {activeTab === 'files' && (
+            <div className="divide-y divide-gray-200">
             {allFiles.map((file) => (
               <div key={file.id} className="px-6 py-4 hover:bg-gray-50">
                 <div className="flex items-center justify-between">
@@ -627,7 +751,129 @@ export default function Dashboard() {
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          )}
+
+          {/* Pinning Secrets Tab */}
+          {activeTab === 'secrets' && (
+            <div className="p-6">
+              <div className="mb-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium text-gray-900">Pinning Secrets</h3>
+                  <button
+                    onClick={() => setShowCreateSecret(true)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+                  >
+                    Generate New Secret
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  Use pinning secrets to upload files programmatically via API
+                </p>
+              </div>
+
+              {/* Create Secret Form */}
+              {showCreateSecret && (
+                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                  <h4 className="font-medium text-gray-900 mb-3">Create New Pinning Secret</h4>
+                  <div className="flex space-x-3">
+                    <input
+                      type="text"
+                      placeholder="Enter secret name (e.g., 'My App API')"
+                      value={newSecretName}
+                      onChange={(e) => setNewSecretName(e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={createPinningSecret}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+                    >
+                      Create
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowCreateSecret(false);
+                        setNewSecretName('');
+                      }}
+                      className="bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Created Secret Display */}
+              {createdSecret && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                  <h4 className="font-medium text-green-900 mb-2">Pinning Secret Created!</h4>
+                  <p className="text-sm text-green-700 mb-3">
+                    Please copy and save this secret. It will not be shown again.
+                  </p>
+                  <div className="bg-white border border-green-300 rounded-md p-3 font-mono text-sm">
+                    {createdSecret}
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(createdSecret);
+                      alert('Copied to clipboard!');
+                    }}
+                    className="mt-3 bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700"
+                  >
+                    Copy to Clipboard
+                  </button>
+                  <button
+                    onClick={() => setCreatedSecret(null)}
+                    className="mt-3 ml-3 bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-700"
+                  >
+                    Close
+                  </button>
+                </div>
+              )}
+
+              {/* Pinning Secrets List */}
+              <div className="space-y-4">
+                {pinningSecrets.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No pinning secrets created yet.</p>
+                ) : (
+                  pinningSecrets.map((secret) => (
+                    <div key={secret.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium text-gray-900">{secret.name}</h4>
+                          <p className="text-sm text-gray-500">
+                            {secret.prefix}••••••••••••••••••••
+                          </p>
+                          <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                            <span>Created: {secret.createdAt}</span>
+                            <span>Last used: {secret.lastUsed}</span>
+                            <span>Usage: {secret.usageThisMonth} MB this month</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            secret.isActive 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {secret.isActive ? 'Active' : 'Revoked'}
+                          </span>
+                          {secret.isActive && (
+                            <button
+                              onClick={() => revokePinningSecret(secret.id)}
+                              className="bg-red-600 text-white px-3 py-1 rounded-md text-sm font-medium hover:bg-red-700"
+                            >
+                              Revoke
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

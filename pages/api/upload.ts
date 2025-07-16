@@ -5,6 +5,7 @@ import path from 'path';
 import { withAuth } from '../../lib/auth';
 import { UserService } from '../../lib/userService';
 import { FileService } from '../../lib/fileService';
+import { PinningSecretService } from '../../lib/pinningSecretService';
 
 // Rate limiting store (in production, use Redis or similar)
 const uploadAttempts = new Map<string, { count: number; resetTime: number }>();
@@ -284,6 +285,8 @@ const uploadHandler = withAuth(async (req, res) => {
       cid: cid.trim(),
       content_type: mimeType,
       upload_date: new Date().toISOString(),
+      upload_method: req.user.authMethod === 'pinning_secret' ? 'api' : 'dashboard',
+      pinning_secret_id: req.user.pinningSecretId || undefined,
     });
 
     if (!savedFile) {
@@ -293,6 +296,15 @@ const uploadHandler = withAuth(async (req, res) => {
         error: 'File uploaded but failed to save metadata', 
         message: 'Please contact support if this persists' 
       });
+    }
+
+    // Update pinning secret usage with actual bytes transferred
+    if (req.user.authMethod === 'pinning_secret' && req.user.pinningSecretId) {
+      await PinningSecretService.trackUsage(
+        req.user.pinningSecretId,
+        fileSize,
+        true
+      );
     }
 
     // Return success response with file info
@@ -305,6 +317,7 @@ const uploadHandler = withAuth(async (req, res) => {
         contentType: mimeType,
         size: fileSize,
         uploadedAt: new Date().toISOString(),
+        uploadMethod: req.user.authMethod === 'pinning_secret' ? 'api' : 'dashboard'
       },
       message: 'File uploaded successfully'
     });

@@ -1,8 +1,15 @@
 import { supabaseServer } from './supabase-server';
 import { Database, formatFileSize } from './supabase';
 
-export type FileRecord = Database['public']['Tables']['files']['Row'];
-export type FileInsert = Database['public']['Tables']['files']['Insert'];
+export type FileRecord = Database['public']['Tables']['files']['Row'] & {
+  upload_method?: string;
+  pinning_secret_id?: string;
+};
+
+export type FileInsert = Database['public']['Tables']['files']['Insert'] & {
+  upload_method?: string;
+  pinning_secret_id?: string;
+};
 
 export interface FileWithFormatted extends FileRecord {
   formattedSize: string;
