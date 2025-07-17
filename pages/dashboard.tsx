@@ -416,6 +416,13 @@ export default function Dashboard() {
     }
   };
 
+  // Handle viewing file content through public gateway
+  const handleViewContent = (cid: string) => {
+    // Since gateway is now public, just open the URL directly
+    const gatewayUrl = `/api/gateway/${cid}`;
+    window.open(gatewayUrl, '_blank');
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -530,38 +537,46 @@ export default function Dashboard() {
 
         {/* Gateway Info */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Codex Gateway</h2>
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Public Codex Gateway</h2>
+          <div className="bg-green-50 border border-green-200 rounded-md p-4">
             <div className="flex">
               <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg className="h-5 w-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800">Gateway URL Format</h3>
-                <div className="mt-2 text-sm text-blue-700">
-                  <p>Access any Codex content through our gateway:</p>
-                  <code className="bg-blue-100 px-2 py-1 rounded text-xs font-mono mt-2 inline-block">
+                <h3 className="text-sm font-medium text-green-800">Public Gateway Access</h3>
+                <div className="mt-2 text-sm text-green-700">
+                  <p>Access any Codex content through our public gateway:</p>
+                  <code className="bg-green-100 px-2 py-1 rounded text-xs font-mono mt-2 inline-block">
                     {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/api/gateway/[CID]
                   </code>
-                                     <p className="mt-2">Replace [CID] with the actual Codex content identifier.</p>
-                 </div>
-               </div>
-             </div>
-           </div>
-           <div className="mt-4">
-             <button
-               onClick={() => router.push('/gateway')}
-               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-             >
-               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-               </svg>
-               Test Gateway
-             </button>
-           </div>
-         </div>
+                  <p className="mt-2">
+                    ✅ <strong>Public & Shareable:</strong> These URLs work for anyone - no login required!
+                  </p>
+                  <p className="mt-1">
+                    ✅ <strong>Direct Access:</strong> Copy and paste URLs to share files with others
+                  </p>
+                  <p className="mt-1">
+                    ✅ <strong>CORS Enabled:</strong> Works in web apps and API calls
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <button
+                onClick={() => router.push('/gateway')}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                Test Gateway
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* Upload Area */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
@@ -703,7 +718,7 @@ export default function Dashboard() {
                       <button
                         className="text-gray-400 hover:text-gray-600"
                         title="View Content"
-                        onClick={() => window.open(`/api/gateway/${file.cid}`, '_blank')}
+                        onClick={() => handleViewContent(file.cid)}
                         disabled={file.status !== 'uploaded'}
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

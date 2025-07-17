@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { usePrivy } from '@privy-io/react-auth';
 
 export default function Gateway() {
   const router = useRouter();
-  const { ready, authenticated } = usePrivy();
   const [cid, setCid] = useState('');
   const [testResult, setTestResult] = useState<{
     status: number;
@@ -14,24 +12,6 @@ export default function Gateway() {
     contentLength?: string;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Redirect to login if not authenticated
-  if (ready && !authenticated) {
-    router.push('/');
-    return null;
-  }
-
-  // Show loading while Privy is initializing
-  if (!ready) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
 
   const handleTestGateway = async () => {
     if (!cid.trim()) {
@@ -47,7 +27,9 @@ export default function Gateway() {
     setTestResult(null);
 
     try {
+      // Test the public gateway - no authentication needed
       const response = await fetch(`/api/gateway/${cid.trim()}`);
+      
       const contentType = response.headers.get('content-type') || 'unknown';
       const contentLength = response.headers.get('content-length') || 'unknown';
 
@@ -55,7 +37,7 @@ export default function Gateway() {
         setTestResult({
           status: response.status,
           success: true,
-          message: 'Content successfully retrieved from Codex',
+          message: 'Content successfully retrieved from Codex network',
           contentType,
           contentLength
         });
@@ -107,8 +89,8 @@ export default function Gateway() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Gateway</h1>
-              <p className="text-sm text-gray-500">Access Codex Content</p>
+              <h1 className="text-2xl font-bold text-gray-900">Public Codex Gateway</h1>
+              <p className="text-sm text-gray-500">Access any Codex content - no login required</p>
             </div>
             <button
               onClick={() => router.push('/dashboard')}
@@ -121,9 +103,32 @@ export default function Gateway() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Info Section */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-8">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-green-800">Public Gateway</h3>
+              <div className="mt-2 text-sm text-green-700">
+                <p>This gateway provides public access to Codex content:</p>
+                <ul className="mt-2 list-disc list-inside space-y-1">
+                  <li>✅ No authentication required</li>
+                  <li>✅ URLs are shareable with anyone</li>
+                  <li>✅ Works from any browser or application</li>
+                  <li>✅ CORS enabled for web app integration</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Test Form */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Access Content</h2>
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Test Gateway Access</h2>
           
           <div className="space-y-4">
             <div>

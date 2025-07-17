@@ -1,67 +1,85 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { IncomingForm, Fields, Files } from 'formidable';
+import { IncomingForm, Fields, Files, File } from 'formidable';
 import fs from 'fs';
 import path from 'path';
 import { withAuth } from '../../lib/auth';
 import { UserService } from '../../lib/userService';
 import { FileService } from '../../lib/fileService';
-import { PinningSecretService } from '../../lib/pinningSecretService';
-
-// Rate limiting store (in production, use Redis or similar)
-const uploadAttempts = new Map<string, { count: number; resetTime: number }>();
 
 // File validation constants
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB max file size
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 const ALLOWED_FILE_TYPES = [
   // Images
-  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+  'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
   // Documents
-  'application/pdf', 'text/plain', 'application/json',
+  'application/pdf', 'text/plain', 'application/msword', 
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   // Audio
   'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4',
   // Video
-  'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime',
+  'video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo',
   // Archives
-  'application/zip', 'application/x-zip-compressed', 'application/x-tar',
-  'application/gzip', 'application/x-rar-compressed',
+  'application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed',
   // Code
-  'text/javascript', 'text/css', 'text/html', 'application/javascript',
-  'application/xml', 'text/xml'
+  'application/json', 'text/html', 'text/css', 'text/javascript'
 ];
 
 const DANGEROUS_FILE_EXTENSIONS = [
   '.exe', '.scr', '.bat', '.cmd', '.com', '.pif', '.vbs', '.js', '.jar',
-  '.msi', '.dll', '.app', '.deb', '.rpm', '.dmg', '.pkg', '.run'
+  '.app', '.deb', '.pkg', '.dmg', '.rpm', '.msi', '.bin', '.run'
 ];
 
-// Rate limiting configuration
+// Rate limiting (in-memory store)
+const uploadAttempts = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX_UPLOADS = 5; // 5 uploads per minute per user
+const MAX_UPLOADS_PER_MINUTE = 5;
 
-// Disable Next.js body parsing to handle multipart form data
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+interface FileValidationResult {
+  valid: boolean;
+  error?: string;
+}
 
-/**
- * Check rate limit for user
- */
+function validateFile(fileName: string, mimeType: string, fileSize: number): FileValidationResult {
+  // Check file size
+  if (fileSize > MAX_FILE_SIZE) {
+    return { valid: false, error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB` };
+  }
+
+  // Check file extension
+  const fileExtension = path.extname(fileName).toLowerCase();
+  if (DANGEROUS_FILE_EXTENSIONS.includes(fileExtension)) {
+    return { valid: false, error: `File type '${fileExtension}' is not allowed for security reasons` };
+  }
+
+  // Check MIME type
+  if (!ALLOWED_FILE_TYPES.includes(mimeType)) {
+    return { valid: false, error: `File type '${mimeType}' is not supported` };
+  }
+
+  // Additional filename validation
+  if (fileName.length > 255) {
+    return { valid: false, error: 'Filename too long' };
+  }
+
+  if (!/^[\w\-. ]+$/.test(fileName)) {
+    return { valid: false, error: 'Filename contains invalid characters' };
+  }
+
+  return { valid: true };
+}
+
 function checkRateLimit(userId: string): { allowed: boolean; resetTime?: number } {
   const now = Date.now();
   const userAttempts = uploadAttempts.get(userId);
 
   if (!userAttempts || now > userAttempts.resetTime) {
-    // Reset or initialize
+    // Reset or create new rate limit window
     uploadAttempts.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
     return { allowed: true };
   }
 
-  if (userAttempts.count >= RATE_LIMIT_MAX_UPLOADS) {
+  if (userAttempts.count >= MAX_UPLOADS_PER_MINUTE) {
     return { allowed: false, resetTime: userAttempts.resetTime };
   }
 
@@ -71,56 +89,13 @@ function checkRateLimit(userId: string): { allowed: boolean; resetTime?: number 
   return { allowed: true };
 }
 
-/**
- * Validate file type and security
- */
-function validateFile(filename: string, mimeType: string, fileSize: number): { valid: boolean; error?: string } {
-  // Check file size
-  if (fileSize > MAX_FILE_SIZE) {
-    return { valid: false, error: `File size exceeds maximum limit of ${MAX_FILE_SIZE / (1024 * 1024)}MB` };
-  }
-
-  if (fileSize === 0) {
-    return { valid: false, error: 'File is empty' };
-  }
-
-  // Check filename
-  if (!filename || filename.trim() === '') {
-    return { valid: false, error: 'Filename is required' };
-  }
-
-  // Check for dangerous file extensions
-  const fileExtension = path.extname(filename).toLowerCase();
-  if (DANGEROUS_FILE_EXTENSIONS.includes(fileExtension)) {
-    return { valid: false, error: `File type '${fileExtension}' is not allowed for security reasons` };
-  }
-
-  // Check MIME type
-  if (!ALLOWED_FILE_TYPES.includes(mimeType)) {
-    return { valid: false, error: `File type '${mimeType}' is not supported. Please upload a supported file type.` };
-  }
-
-  // Check for null bytes in filename (security)
-  if (filename.includes('\0')) {
-    return { valid: false, error: 'Invalid filename' };
-  }
-
-  // Check filename length
-  if (filename.length > 255) {
-    return { valid: false, error: 'Filename is too long (max 255 characters)' };
-  }
-
-  return { valid: true };
-}
-
-/**
- * Cleanup temporary file
- */
-function cleanupTempFile(filepath: string): void {
+function cleanupTempFile(filepath: string) {
   try {
-    fs.unlinkSync(filepath);
-  } catch (cleanupError) {
-    console.warn('Failed to cleanup temporary file:', cleanupError);
+    if (fs.existsSync(filepath)) {
+      fs.unlinkSync(filepath);
+    }
+  } catch (error) {
+    console.error('Error cleaning up temp file:', error);
   }
 }
 
@@ -144,17 +119,12 @@ const uploadHandler = withAuth(async (req, res) => {
     });
   }
 
-  // Get Codex API credentials from environment
-  const codexApiUrl = process.env.CODEX_API_URL;
-  const codexUsername = process.env.CODEX_USERNAME;
-  const codexPassword = process.env.CODEX_PASSWORD;
+  // Use demo-node-1 Codex API credentials (same as gateway and storage service)
+  const codexApiUrl = 'https://api.demo.codex.storage/fileshareapp/api/codex/v1';
+  const codexUsername = 'codex';
+  const codexPassword = 'iOpcciMDt2xCJnPrlJ86AaBOrbTzFH';
 
-  if (!codexApiUrl || !codexUsername || !codexPassword) {
-    console.error('Missing Codex API configuration');
-    return res.status(500).json({ error: 'Server configuration error' });
-  }
-
-  let uploadedFile: any = null;
+  let uploadedFile: File | undefined = undefined;
 
   try {
     console.log('Processing upload request for user:', userId);
@@ -185,7 +155,7 @@ const uploadHandler = withAuth(async (req, res) => {
       }
     });
 
-    const [fields, files] = await form.parse(req);
+    const [_fields, files] = await form.parse(req);
 
     // Get the uploaded file
     uploadedFile = Array.isArray(files.file) ? files.file[0] : files.file;
@@ -249,7 +219,7 @@ const uploadHandler = withAuth(async (req, res) => {
 
     // Clean up temporary file immediately after upload
     cleanupTempFile(uploadedFile.filepath);
-    uploadedFile = null; // Mark as cleaned up
+    uploadedFile = undefined; // Mark as cleaned up
 
     // Handle Codex API responses
     if (!codexResponse.ok) {
@@ -296,15 +266,6 @@ const uploadHandler = withAuth(async (req, res) => {
         error: 'File uploaded but failed to save metadata', 
         message: 'Please contact support if this persists' 
       });
-    }
-
-    // Update pinning secret usage with actual bytes transferred
-    if (req.user.authMethod === 'pinning_secret' && req.user.pinningSecretId) {
-      await PinningSecretService.trackUsage(
-        req.user.pinningSecretId,
-        fileSize,
-        true
-      );
     }
 
     // Return success response with file info
@@ -354,4 +315,11 @@ const uploadHandler = withAuth(async (req, res) => {
   }
 });
 
-export default uploadHandler; 
+export { uploadHandler as default };
+
+// Disable Next.js body parsing to handle multipart form data
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+}; 
