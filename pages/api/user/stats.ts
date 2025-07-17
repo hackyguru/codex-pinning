@@ -11,12 +11,20 @@ const userStatsHandler = withAuth(async (req, res) => {
   try {
     // Get user ID from JWT verification
     const userId = req.user.id;
+    const userEmail = req.user.email;
 
-    // Get user stats from database
-    const stats = await UserService.getUserStats(userId);
+    // Try to get user stats from database
+    let stats = await UserService.getUserStats(userId);
+
+    // If user doesn't exist, create their profile first
+    if (!stats) {
+      console.log(`Creating user profile for ${userId} on first dashboard access`);
+      await UserService.upsertUserProfile(userId, userEmail);
+      stats = await UserService.getUserStats(userId);
+    }
 
     if (!stats) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(500).json({ error: 'Failed to create user profile' });
     }
 
     return res.status(200).json({

@@ -18,7 +18,7 @@ const gatewayHandler = async (req: NextApiRequest, res: NextApiResponse) => {
     // Check if the CID exists in our database (for basic validation)
     const { data: fileRecord, error: dbError } = await supabaseServer
       .from('files')
-      .select('filename, mime_type')
+      .select('filename, content_type')
       .eq('cid', cid)
       .single();
 
@@ -67,7 +67,7 @@ const gatewayHandler = async (req: NextApiRequest, res: NextApiResponse) => {
     }
 
     // Get content type - use from database if available, otherwise from response
-    const contentType = fileRecord?.mime_type || 
+    const contentType = fileRecord?.content_type || 
                        codexResponse.headers.get('content-type') || 
                        'application/octet-stream';
     const contentLength = codexResponse.headers.get('content-length');
