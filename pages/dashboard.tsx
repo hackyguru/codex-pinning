@@ -1,8 +1,9 @@
 import { useRouter } from 'next/router';
 import { usePrivy } from '@privy-io/react-auth';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { UserStats } from '../lib/userService';
 import { FileWithFormatted } from '../lib/fileService';
+import Image from 'next/image';
 
 interface UploadedFile {
   id: string;
@@ -42,7 +43,12 @@ export default function Dashboard() {
   const [showCreateSecret, setShowCreateSecret] = useState(false);
   const [newSecretName, setNewSecretName] = useState('');
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'files' | 'secrets'>('files');
+  const [activeSection, setActiveSection] = useState<'overview' | 'files' | 'secrets' | 'settings'>('overview');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [uploadMode, setUploadMode] = useState<'drag-drop' | 'api'>('drag-drop');
+  const [selectedCodeExample, setSelectedCodeExample] = useState<'curl' | 'javascript' | 'python' | 'node'>('curl');
 
   // Utility functions
   const getFileIcon = (contentType: string) => {
@@ -255,6 +261,19 @@ export default function Dashboard() {
     }
   }, [ready, authenticated, router, user]);
 
+  // Keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const handleLogout = async () => {
     await logout();
     router.push('/');
@@ -423,12 +442,37 @@ export default function Dashboard() {
     window.open(gatewayUrl, '_blank');
   };
 
+  // Handle search submission
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = searchQuery.trim();
+    
+    if (!query) return;
+    
+    // Check if the query looks like a CID (basic validation)
+    // CIDs typically start with 'Qm' (CIDv0) or 'ba' (CIDv1) and are long alphanumeric strings
+    const cidPattern = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|ba[a-z2-7]{57}|b[a-z2-7]+)$/;
+    
+    if (cidPattern.test(query) || query.length > 40) {
+      // Treat as CID and open in gateway
+      handleViewContent(query);
+      setSearchQuery(''); // Clear search after opening
+    } else {
+      // For now, just alert that we're searching for files
+      // In the future, this could search through file names
+      alert(`Searching for: "${query}"\n\nTip: Enter a CID to view content directly in the gateway.`);
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <div className="relative">
+            <div className="animate-spin rounded-full h-12 w-12 border-2 border-zinc-600"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-2 border-white border-t-transparent absolute top-0 left-0"></div>
+          </div>
+          <p className="mt-4 text-zinc-400">Loading...</p>
         </div>
       </div>
     );
@@ -460,423 +504,785 @@ export default function Dashboard() {
 
   const allFiles = getAllFiles();
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">ThirdStorage</h1>
-              <p className="text-sm text-gray-500">Web3 Pinning Service</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-600">
-                <span className="font-medium">{getUserEmail()}</span>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+  // Navigation items with Vercel-inspired design
+  const navigationItems = [
+    {
+      id: 'overview',
+      label: 'Overview',
+      isActive: activeSection === 'overview',
+    },
+    {
+      id: 'files',
+      label: 'Storage',
+      isActive: activeSection === 'files',
+    },
+    {
+      id: 'secrets',
+      label: 'API Secrets',
+      isActive: activeSection === 'secrets',
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      isActive: activeSection === 'settings',
+    },
+  ];
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Storage Usage */}
-        {userStats && (
-          <div className="bg-white rounded-lg shadow-sm mb-8 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-medium text-gray-900">Storage Usage</h2>
+  return (
+    <div className="min-h-screen bg-black text-white">
+      {/* Vercel-inspired Header */}
+      <header className="">
+        <div className="flex items-center justify-between h-16 px-4 sm:px-6">
+            {/* Left section - Logo and Project Info */}
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 flex items-center justify-center">
+                  <Image src="/white.svg" alt="ThirdStorage" width={20} height={20} className="filter invert" />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-zinc-400">/</span>
+                  <span className="text-zinc-400">{getUserEmail()?.split('@')[0] || 'user'}</span>
+                  <span className="px-2 py-1 text-xs bg-zinc-800 text-zinc-300 rounded-md border border-zinc-700">
+                    {userStats?.planType || 'free'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right section - Search, Actions, User */}
+            <div className="flex items-center space-x-4">
+              {/* Search */}
+              <div className="hidden md:flex items-center">
+                <form onSubmit={handleSearch} className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-4 w-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="Search files or enter CID..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="block w-64 pl-10 pr-16 py-2 border border-zinc-700 rounded-md bg-zinc-900 text-zinc-300 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-600 focus:border-zinc-600 text-sm"
+                  />
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center space-x-1">
+                    <kbd className="inline-flex items-center px-1.5 py-0.5 rounded border border-zinc-600 bg-zinc-800 text-zinc-400 text-xs">
+                      ⌘K
+                    </kbd>
+                  </div>
+                </form>
+              </div>
+
+              {/* Actions */}
               <div className="flex items-center space-x-2">
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                  userStats.planType === 'pro' 
-                    ? 'bg-purple-100 text-purple-800' 
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {userStats.planType.toUpperCase()}
-                </span>
-                {userStats.planType === 'free' && (
-                  <button className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-full hover:bg-blue-700">
-                    Upgrade to Pro
-                  </button>
+                <a
+                  href='https://docs.thirdstorage.com'
+                  target='_blank'
+                  className="px-3 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-md transition-colors"
+                >
+                  Docs
+                </a>
+              </div>
+
+              {/* User Menu */}
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={handleLogout}
+                  className="text-zinc-400 hover:text-white transition-colors text-sm"
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
+        </div>
+      </header>
+
+              {/* Vercel-inspired Navigation */}
+        <nav className="border-b border-zinc-800">
+          <div className="flex space-x-8 px-4 sm:px-6">
+            {navigationItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveSection(item.id as any)}
+                className={`relative py-4 text-sm font-medium transition-colors ${
+                  item.isActive
+                    ? 'text-white'
+                    : 'text-zinc-400 hover:text-zinc-300'
+                }`}
+              >
+                {item.label}
+                {item.isActive && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white"></div>
+                )}
+              </button>
+            ))}
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        
+        {/* Overview Section */}
+        {activeSection === 'overview' && (
+          <div className="space-y-8">
+            {/* Stats Cards */}
+            {userStats && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Storage Usage */}
+                <div className="lg:col-span-2 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6 flex flex-col">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="text-lg font-semibold text-white">Storage Usage</h2>
+                                              <p className="text-zinc-400 text-sm">Track your storage consumption</p>
+                    </div>
+                    <span className="px-3 py-1 text-xs font-medium rounded-full bg-zinc-800/80 backdrop-blur-sm text-zinc-300 border border-zinc-700/50">
+                      {userStats.planType.toUpperCase()}
+                    </span>
+                  </div>
+                  
+                  <div className="flex-1 flex flex-col justify-center space-y-6">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-400">{formatFileSize(userStats.storageUsed)} used</span>
+                      <span className="text-zinc-400">{formatFileSize(userStats.storageLimit)} total</span>
+                    </div>
+                                          <div className="w-full bg-zinc-800/50 rounded-full h-3">
+                      <div 
+                        className={`h-3 rounded-full transition-all duration-500 ${
+                          userStats.usagePercentage >= 90 ? 'bg-white/90' :
+                          userStats.usagePercentage >= 75 ? 'bg-white/70' :
+                          'bg-white/50'
+                        }`}
+                        style={{ width: `${userStats.usagePercentage}%` }}
+                      ></div>
+                    </div>
+                                          <div className="flex justify-between text-sm text-zinc-400">
+                      <span>{userStats.filesCount} files</span>
+                      <span>{userStats.usagePercentage.toFixed(1)}% used</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Stats */}
+                                  <div className="flex flex-col space-y-4 h-full">
+                    <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6 flex-1 flex flex-col justify-center">
+                      <div className="flex items-center">
+                        <div className="w-12 h-12 bg-zinc-800/80 backdrop-blur-sm rounded-lg flex items-center justify-center mr-4">
+                          <svg className="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm text-zinc-400 mb-1">Total Files</p>
+                        <p className="text-2xl font-semibold text-white">{allFiles.length}</p>
+                      </div>
+                    </div>
+                  </div>
+                                    
+                    <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6 flex-1 flex flex-col justify-center">
+                      <div className="flex items-center">
+                        <div className="w-12 h-12 bg-zinc-800/80 backdrop-blur-sm rounded-lg flex items-center justify-center mr-4">
+                          <svg className="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 12H9v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4c0-7.2 5.3-13.2 12.5-12.5A6 6 0 0115 7z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm text-zinc-400 mb-1">API Secrets</p>
+                        <p className="text-2xl font-semibold text-white">{pinningSecrets.length}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Upload and Recent Files Section - Horizontal Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Upload Section */}
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6 h-[480px] flex flex-col">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-semibold text-white">Upload Files</h2>
+                  
+                  {/* Mode Toggle */}
+                  <div className="flex items-center space-x-3">
+                    <span className={`text-sm ${uploadMode === 'drag-drop' ? 'text-white' : 'text-zinc-400'}`}>
+                      Drag & Drop
+                    </span>
+                    <button
+                      onClick={() => setUploadMode(uploadMode === 'drag-drop' ? 'api' : 'drag-drop')}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        uploadMode === 'api' ? 'bg-white' : 'bg-zinc-700'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
+                          uploadMode === 'api' ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                    <span className={`text-sm ${uploadMode === 'api' ? 'text-white' : 'text-zinc-400'}`}>
+                      Using API
+                    </span>
+                  </div>
+                </div>
+
+                {uploadMode === 'drag-drop' ? (
+                  <div
+                    className={`flex-1 border-2 border-dashed rounded-lg p-6 text-center transition-colors backdrop-blur-sm flex flex-col justify-center ${
+                      isDragOver
+                        ? 'border-white/50 bg-zinc-800/50'
+                        : isUploading
+                        ? 'border-zinc-500 bg-zinc-800/30'
+                        : 'border-zinc-700 hover:border-zinc-600 bg-zinc-900/30'
+                    }`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                  >
+                    <div className="space-y-4">
+                      <div className="mx-auto w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center">
+                        {isUploading ? (
+                                                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-zinc-600 border-t-white"></div>
+                        ) : (
+                                                  <svg className="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-lg font-medium text-white">
+                          {isUploading ? 'Uploading...' : 'Drop files here or click to upload'}
+                        </p>
+                        <p className="text-zinc-400">Support for any file type up to 100MB</p>
+                      </div>
+                      <div>
+                        <input
+                          type="file"
+                          multiple
+                          onChange={handleFileSelect}
+                          className="hidden"
+                          id="file-upload"
+                          disabled={isUploading}
+                        />
+                        <label
+                          htmlFor="file-upload"
+                          className={`inline-flex items-center px-4 py-2 rounded-md font-medium text-sm transition-colors cursor-pointer ${
+                            isUploading
+                              ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                              : 'bg-white text-black hover:bg-zinc-100'
+                          }`}
+                        >
+                          {isUploading ? 'Uploading...' : 'Choose Files'}
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                                ) : (
+                  <div className="flex-1 flex flex-col">
+                    {/* Language Tabs */}
+                    <div className="flex space-x-1 mb-3 bg-zinc-800/30 backdrop-blur-sm rounded-lg p-1">
+                      {[
+                        { id: 'curl', label: 'cURL' },
+                        { id: 'javascript', label: 'JavaScript' },
+                        { id: 'python', label: 'Python' },
+                        { id: 'node', label: 'Node.js' }
+                      ].map((tab) => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setSelectedCodeExample(tab.id as any)}
+                          className={`flex-1 px-3 py-2 text-xs font-medium rounded-md transition-colors ${
+                            selectedCodeExample === tab.id
+                              ? 'bg-white text-black'
+                              : 'text-zinc-400 hover:text-white'
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Code Example */}
+                    <div className="flex-1 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-lg flex flex-col min-h-0">
+                      <div className="flex items-center justify-between p-3 border-b border-zinc-700/50">
+                        <h3 className="text-sm font-semibold text-white">
+                          {selectedCodeExample === 'curl' && 'Upload with cURL'}
+                          {selectedCodeExample === 'javascript' && 'Upload with JavaScript'}
+                          {selectedCodeExample === 'python' && 'Upload with Python'}
+                          {selectedCodeExample === 'node' && 'Upload with Node.js'}
+                        </h3>
+                        <button
+                          onClick={() => {
+                            const codeSnippets = {
+                              curl: `curl -X POST "${window.location.origin}/api/upload" \\
+  -H "Authorization: Bearer YOUR_API_SECRET" \\
+  -F "file=@/path/to/your/file.jpg"`,
+                              javascript: `const formData = new FormData();
+formData.append('file', fileInput.files[0]);
+
+fetch('${window.location.origin}/api/upload', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_API_SECRET'
+  },
+  body: formData
+})
+.then(response => response.json())
+.then(data => console.log(data));`,
+                              python: `import requests
+
+url = "${window.location.origin}/api/upload"
+headers = {"Authorization": "Bearer YOUR_API_SECRET"}
+files = {"file": open("/path/to/your/file.jpg", "rb")}
+
+response = requests.post(url, headers=headers, files=files)
+print(response.json())`,
+                              node: `const form = new FormData();
+form.append('file', fs.createReadStream('/path/to/your/file.jpg'));
+
+fetch('${window.location.origin}/api/upload', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_API_SECRET',
+    ...form.getHeaders()
+  },
+  body: form
+})
+.then(res => res.json())
+.then(data => console.log(data));`
+                            };
+                            navigator.clipboard.writeText(codeSnippets[selectedCodeExample]);
+                            alert('Code copied to clipboard!');
+                          }}
+                          className="text-xs text-zinc-400 hover:text-white transition-colors"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      
+                      <div className="flex-1 p-3 font-mono text-xs text-zinc-300 overflow-hidden">
+                        {selectedCodeExample === 'curl' && (
+                          <div className="space-y-1">
+                            <div className="text-zinc-500"># Upload a file using cURL</div>
+                            <div><span className="text-zinc-400">curl</span> <span className="text-white">-X POST</span> <span className="text-zinc-300">"{window.location.origin}/api/upload"</span> <span className="text-white">\</span></div>
+                            <div className="ml-2"><span className="text-white">-H</span> <span className="text-zinc-300">"Authorization: Bearer YOUR_API_SECRET"</span> <span className="text-white">\</span></div>
+                            <div className="ml-2"><span className="text-white">-F</span> <span className="text-zinc-300">"file=@/path/to/your/file.jpg"</span></div>
+                          </div>
+                        )}
+                        
+                        {selectedCodeExample === 'javascript' && (
+                          <div className="space-y-1">
+                            <div><span className="text-blue-400">const</span> <span className="text-white">formData</span> <span className="text-zinc-400">=</span> <span className="text-blue-400">new</span> <span className="text-yellow-400">FormData</span><span className="text-zinc-400">();</span></div>
+                            <div><span className="text-white">formData</span><span className="text-zinc-400">.</span><span className="text-yellow-400">append</span><span className="text-zinc-400">(</span><span className="text-green-400">'file'</span><span className="text-zinc-400">,</span> <span className="text-white">fileInput</span><span className="text-zinc-400">.</span><span className="text-white">files</span><span className="text-zinc-400">[</span><span className="text-purple-400">0</span><span className="text-zinc-400">]);</span></div>
+                            <div className="mt-2"></div>
+                            <div><span className="text-yellow-400">fetch</span><span className="text-zinc-400">(</span><span className="text-green-400">'{window.location.origin}/api/upload'</span><span className="text-zinc-400">,</span> <span className="text-zinc-400">{'{'}</span></div>
+                            <div className="ml-2"><span className="text-white">method</span><span className="text-zinc-400">:</span> <span className="text-green-400">'POST'</span><span className="text-zinc-400">,</span></div>
+                            <div className="ml-2"><span className="text-white">headers</span><span className="text-zinc-400">:</span> <span className="text-zinc-400">{'{'}</span></div>
+                            <div className="ml-4"><span className="text-green-400">'Authorization'</span><span className="text-zinc-400">:</span> <span className="text-green-400">'Bearer YOUR_API_SECRET'</span></div>
+                            <div className="ml-2"><span className="text-zinc-400">{'}'}</span><span className="text-zinc-400">,</span></div>
+                            <div className="ml-2"><span className="text-white">body</span><span className="text-zinc-400">:</span> <span className="text-white">formData</span></div>
+                            <div><span className="text-zinc-400">{'}'}</span><span className="text-zinc-400">)</span></div>
+                            <div><span className="text-zinc-400">.</span><span className="text-yellow-400">then</span><span className="text-zinc-400">(</span><span className="text-white">response</span> <span className="text-zinc-400">{'=>'}</span> <span className="text-white">response</span><span className="text-zinc-400">.</span><span className="text-yellow-400">json</span><span className="text-zinc-400">())</span></div>
+                            <div><span className="text-zinc-400">.</span><span className="text-yellow-400">then</span><span className="text-zinc-400">(</span><span className="text-white">data</span> <span className="text-zinc-400">{'=>'}</span> <span className="text-white">console</span><span className="text-zinc-400">.</span><span className="text-yellow-400">log</span><span className="text-zinc-400">(</span><span className="text-white">data</span><span className="text-zinc-400">));</span></div>
+                          </div>
+                        )}
+                        
+                        {selectedCodeExample === 'python' && (
+                          <div className="space-y-1">
+                            <div><span className="text-blue-400">import</span> <span className="text-white">requests</span></div>
+                            <div className="mt-2"></div>
+                            <div><span className="text-white">url</span> <span className="text-zinc-400">=</span> <span className="text-green-400">"{window.location.origin}/api/upload"</span></div>
+                            <div><span className="text-white">headers</span> <span className="text-zinc-400">=</span> <span className="text-zinc-400">{'{'}</span><span className="text-green-400">"Authorization"</span><span className="text-zinc-400">:</span> <span className="text-green-400">"Bearer YOUR_API_SECRET"</span><span className="text-zinc-400">{'}'}</span></div>
+                            <div><span className="text-white">files</span> <span className="text-zinc-400">=</span> <span className="text-zinc-400">{'{'}</span><span className="text-green-400">"file"</span><span className="text-zinc-400">:</span> <span className="text-yellow-400">open</span><span className="text-zinc-400">(</span><span className="text-green-400">"/path/to/your/file.jpg"</span><span className="text-zinc-400">,</span> <span className="text-green-400">"rb"</span><span className="text-zinc-400">)</span><span className="text-zinc-400">{'}'}</span></div>
+                            <div className="mt-2"></div>
+                            <div><span className="text-white">response</span> <span className="text-zinc-400">=</span> <span className="text-white">requests</span><span className="text-zinc-400">.</span><span className="text-yellow-400">post</span><span className="text-zinc-400">(</span><span className="text-white">url</span><span className="text-zinc-400">,</span> <span className="text-white">headers</span><span className="text-zinc-400">=</span><span className="text-white">headers</span><span className="text-zinc-400">,</span> <span className="text-white">files</span><span className="text-zinc-400">=</span><span className="text-white">files</span><span className="text-zinc-400">)</span></div>
+                            <div><span className="text-yellow-400">print</span><span className="text-zinc-400">(</span><span className="text-white">response</span><span className="text-zinc-400">.</span><span className="text-yellow-400">json</span><span className="text-zinc-400">())</span></div>
+                          </div>
+                        )}
+                        
+                        {selectedCodeExample === 'node' && (
+                          <div className="space-y-1">
+                            <div><span className="text-blue-400">const</span> <span className="text-white">form</span> <span className="text-zinc-400">=</span> <span className="text-blue-400">new</span> <span className="text-yellow-400">FormData</span><span className="text-zinc-400">();</span></div>
+                            <div><span className="text-white">form</span><span className="text-zinc-400">.</span><span className="text-yellow-400">append</span><span className="text-zinc-400">(</span><span className="text-green-400">'file'</span><span className="text-zinc-400">,</span> <span className="text-white">fs</span><span className="text-zinc-400">.</span><span className="text-yellow-400">createReadStream</span><span className="text-zinc-400">(</span><span className="text-green-400">'/path/to/file.jpg'</span><span className="text-zinc-400">));</span></div>
+                            <div className="mt-2"></div>
+                            <div><span className="text-yellow-400">fetch</span><span className="text-zinc-400">(</span><span className="text-green-400">'{window.location.origin}/api/upload'</span><span className="text-zinc-400">,</span> <span className="text-zinc-400">{'{'}</span></div>
+                            <div className="ml-2"><span className="text-white">method</span><span className="text-zinc-400">:</span> <span className="text-green-400">'POST'</span><span className="text-zinc-400">,</span></div>
+                            <div className="ml-2"><span className="text-white">headers</span><span className="text-zinc-400">:</span> <span className="text-zinc-400">{'{'}</span></div>
+                            <div className="ml-4"><span className="text-green-400">'Authorization'</span><span className="text-zinc-400">:</span> <span className="text-green-400">'Bearer YOUR_API_SECRET'</span><span className="text-zinc-400">,</span></div>
+                            <div className="ml-4"><span className="text-zinc-400">...</span><span className="text-white">form</span><span className="text-zinc-400">.</span><span className="text-yellow-400">getHeaders</span><span className="text-zinc-400">()</span></div>
+                            <div className="ml-2"><span className="text-zinc-400">{'}'}</span><span className="text-zinc-400">,</span></div>
+                            <div className="ml-2"><span className="text-white">body</span><span className="text-zinc-400">:</span> <span className="text-white">form</span></div>
+                            <div><span className="text-zinc-400">{'}'}</span><span className="text-zinc-400">)</span></div>
+                            <div><span className="text-zinc-400">.</span><span className="text-yellow-400">then</span><span className="text-zinc-400">(</span><span className="text-white">res</span> <span className="text-zinc-400">{'=>'}</span> <span className="text-white">res</span><span className="text-zinc-400">.</span><span className="text-yellow-400">json</span><span className="text-zinc-400">())</span></div>
+                            <div><span className="text-zinc-400">.</span><span className="text-yellow-400">then</span><span className="text-zinc-400">(</span><span className="text-white">data</span> <span className="text-zinc-400">{'=>'}</span> <span className="text-white">console</span><span className="text-zinc-400">.</span><span className="text-yellow-400">log</span><span className="text-zinc-400">(</span><span className="text-white">data</span><span className="text-zinc-400">));</span></div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+
+                  </div>
                 )}
               </div>
-            </div>
-            
-            <div className="mb-2">
-              <div className="flex justify-between text-sm text-gray-600 mb-1">
-                <span>{formatFileSize(userStats.storageUsed)} used</span>
-                <span>{formatFileSize(userStats.storageLimit)} total</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className={`h-2 rounded-full ${
-                    userStats.usagePercentage >= 90 ? 'bg-red-500' :
-                    userStats.usagePercentage >= 75 ? 'bg-yellow-500' :
-                    'bg-green-500'
-                  }`}
-                  style={{ width: `${userStats.usagePercentage}%` }}
-                ></div>
-              </div>
-            </div>
-            
-            <div className="text-sm text-gray-600">
-              {userStats.filesCount} files • {userStats.usagePercentage.toFixed(1)}% used
-              {userStats.usagePercentage >= 90 && (
-                <span className="ml-2 text-red-600 font-medium">
-                  ⚠️ Storage almost full
-                </span>
+
+              {/* Recent Files */}
+              {allFiles.length > 0 ? (
+                <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6 h-[480px] flex flex-col">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-semibold text-white">Recent Files</h3>
+                                        <button
+                        onClick={() => setActiveSection('files')}
+                        className="text-sm text-zinc-400 hover:text-white transition-colors"
+                      >
+                      View all →
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto space-y-3">
+                    {allFiles.slice(0, 8).map((file) => (
+                      <div key={file.id} className="flex items-center justify-between py-2">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-lg">{getFileIcon(file.type)}</span>
+                          <div>
+                            <p className="font-medium text-white text-sm">{file.name}</p>
+                            <p className="text-zinc-400 text-xs">{file.size}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm ${
+                            file.status === 'uploaded' 
+                              ? 'bg-zinc-800/80 text-zinc-300 border border-zinc-700/50' 
+                              : file.status === 'uploading'
+                              ? 'bg-zinc-700/80 text-zinc-200 border border-zinc-600/50'
+                              : 'bg-zinc-900/80 text-zinc-400 border border-zinc-800/50'
+                          }`}>
+                            {file.status === 'uploaded' ? 'Ready' : 
+                             file.status === 'uploading' ? 'Uploading' : 'Error'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6 h-[480px] flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="mx-auto w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center mb-3">
+                      <svg className="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-sm font-medium text-white mb-1">No files yet</h3>
+                    <p className="text-zinc-400 text-xs">Upload your first file to see recent files here</p>
+                  </div>
+                </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Gateway Info */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Public Codex Gateway</h2>
-          <div className="bg-green-50 border border-green-200 rounded-md p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-green-800">Public Gateway Access</h3>
-                <div className="mt-2 text-sm text-green-700">
-                  <p>Access any Codex content through our public gateway:</p>
-                  <code className="bg-green-100 px-2 py-1 rounded text-xs font-mono mt-2 inline-block">
-                    {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/api/gateway/[CID]
-                  </code>
-                  <p className="mt-2">
-                    ✅ <strong>Public & Shareable:</strong> These URLs work for anyone - no login required!
-                  </p>
-                  <p className="mt-1">
-                    ✅ <strong>Direct Access:</strong> Copy and paste URLs to share files with others
-                  </p>
-                  <p className="mt-1">
-                    ✅ <strong>CORS Enabled:</strong> Works in web apps and API calls
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="mt-4">
-              <button
-                onClick={() => router.push('/gateway')}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-                Test Gateway
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Upload Area */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Upload Files</h2>
-          <div
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-              isDragOver
-                ? 'border-blue-400 bg-blue-50'
-                : isUploading
-                ? 'border-yellow-400 bg-yellow-50'
-                : 'border-gray-300 hover:border-gray-400'
-            }`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <div className="space-y-4">
-              <div className="flex justify-center">
-                {isUploading ? (
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                ) : (
-                  <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                )}
-              </div>
+        {/* Storage Section */}
+        {activeSection === 'files' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-xl font-medium text-gray-900">
-                  {isUploading ? 'Uploading files...' : 'Drop files here or click to upload'}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Support for any file type up to 100MB
-                </p>
+                <h1 className="text-2xl font-bold text-white">Storage</h1>
+                <p className="text-zinc-400">Manage your uploaded files</p>
               </div>
-              <div>
-                <input
-                  type="file"
-                  multiple
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  id="file-upload"
-                  disabled={isUploading}
-                />
-                <label
-                  htmlFor="file-upload"
-                  className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer ${
-                    isUploading
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                >
-                  {isUploading ? 'Uploading...' : 'Choose Files'}
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="bg-white rounded-lg shadow-sm">
-          <div className="border-b border-gray-200">
-            <nav className="flex space-x-8 px-6" aria-label="Tabs">
-              <button
-                onClick={() => setActiveTab('files')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'files'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Your Files
-              </button>
-              <button
-                onClick={() => setActiveTab('secrets')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'secrets'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Pinning Secrets
-              </button>
-            </nav>
-          </div>
-
-                    {/* Tab Content */}
-          {activeTab === 'files' && (
-            <div className="divide-y divide-gray-200">
-            {allFiles.map((file) => (
-              <div key={file.id} className="px-6 py-4 hover:bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                        {file.status === 'uploading' ? (
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                        ) : (
-                                                  <span className="text-2xl">
-                          {getFileIcon(file.type)}
-                        </span>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                      <p className="text-sm text-gray-500">{file.size} • {formatContentType(file.type)}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="text-right">
-                      <p className="text-sm text-gray-900">
-                        {new Date(file.uploadedAt).toLocaleDateString()}
-                      </p>
-                      <div className="flex items-center space-x-2">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          file.status === 'uploaded' 
-                            ? 'bg-green-100 text-green-800' 
-                            : file.status === 'uploading'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {file.status === 'uploaded' ? '✅ Uploaded' : 
-                           file.status === 'uploading' ? '⏳ Uploading' : 
-                           `❌ ${file.error || 'Error'}`}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        className="text-gray-400 hover:text-gray-600"
-                        title="Copy CID"
-                        onClick={() => navigator.clipboard.writeText(file.cid)}
-                        disabled={file.status !== 'uploaded'}
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                      </button>
-                      <button
-                        className="text-gray-400 hover:text-gray-600"
-                        title="View Content"
-                        onClick={() => handleViewContent(file.cid)}
-                        disabled={file.status !== 'uploaded'}
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                      </button>
-                      {file.status === 'uploaded' ? (
-                        <button
-                          className="text-red-400 hover:text-red-600"
-                          title="Delete"
-                          onClick={() => handleDeleteFile(file.originalId || file.id)}
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      ) : file.status === 'uploading' ? (
-                        <button
-                          className="text-gray-400 hover:text-red-600"
-                          title="Cancel upload"
-                          onClick={() => setUploadedFiles(prev => prev.filter(f => f.id !== file.id))}
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      ) : (
-                        <button
-                          className="text-red-400 hover:text-red-600"
-                          title="Remove from list"
-                          onClick={() => setUploadedFiles(prev => prev.filter(f => f.id !== file.id))}
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-2">
-                  <p className="text-xs text-gray-500 font-mono break-all">
-                    CID: {file.cid || 'Generating...'}
-                  </p>
-                </div>
-              </div>
-            ))}
-            </div>
-          )}
-
-          {/* Pinning Secrets Tab */}
-          {activeTab === 'secrets' && (
-            <div className="p-6">
-              <div className="mb-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium text-gray-900">Pinning Secrets</h3>
+              <div className="flex items-center space-x-3">
+                                  <div className="flex bg-zinc-800 rounded-lg p-1">
                   <button
-                    onClick={() => setShowCreateSecret(true)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+                    onClick={() => setViewMode('grid')}
+                                          className={`p-2 rounded transition-colors ${
+                        viewMode === 'grid'
+                          ? 'bg-zinc-700 text-white'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
                   >
-                    Generate New Secret
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                                          className={`p-2 rounded transition-colors ${
+                        viewMode === 'list'
+                          ? 'bg-zinc-700 text-white'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
                   </button>
                 </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  Use pinning secrets to upload files programmatically via API
-                </p>
               </div>
+            </div>
 
-              {/* Create Secret Form */}
-              {showCreateSecret && (
-                <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                  <h4 className="font-medium text-gray-900 mb-3">Create New Pinning Secret</h4>
-                  <div className="flex space-x-3">
-                    <input
-                      type="text"
-                      placeholder="Enter secret name (e.g., 'My App API')"
-                      value={newSecretName}
-                      onChange={(e) => setNewSecretName(e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button
-                      onClick={createPinningSecret}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
-                    >
-                      Create
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowCreateSecret(false);
-                        setNewSecretName('');
-                      }}
-                      className="bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-700"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+            {allFiles.length === 0 ? (
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-12 text-center">
+                <div className="mx-auto w-16 h-16 bg-zinc-800 rounded-lg flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
                 </div>
-              )}
-
-              {/* Created Secret Display */}
-              {createdSecret && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                  <h4 className="font-medium text-green-900 mb-2">Pinning Secret Created!</h4>
-                  <p className="text-sm text-green-700 mb-3">
-                    Please copy and save this secret. It will not be shown again.
-                  </p>
-                  <div className="bg-white border border-green-300 rounded-md p-3 font-mono text-sm">
-                    {createdSecret}
+                <h3 className="text-lg font-medium text-white mb-2">No files yet</h3>
+                <p className="text-zinc-400 mb-6">Upload your first file to get started</p>
+                <button
+                  onClick={() => setActiveSection('overview')}
+                  className="inline-flex items-center px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors"
+                >
+                  Upload Files
+                </button>
+              </div>
+            ) : viewMode === 'grid' ? (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {allFiles.map((file) => (
+                    <div key={file.id} className="group bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-4 hover:border-zinc-700/80 transition-colors">
+                    <div className="flex items-start justify-between mb-3">
+                                              <div className="w-10 h-10 bg-zinc-800 rounded-lg flex items-center justify-center">
+                        {file.status === 'uploading' ? (
+                                                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-zinc-600 border-t-white"></div>
+                        ) : (
+                          <span className="text-lg">{getFileIcon(file.type)}</span>
+                        )}
+                      </div>
+                      {file.status === 'uploaded' && (
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => handleDeleteFile(file.originalId || file.id)}
+                            className="p-1 text-zinc-400 hover:text-red-400 transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-white text-sm truncate">{file.name}</h4>
+                                              <p className="text-zinc-400 text-xs">{file.size}</p>
+                      <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm ${
+                        file.status === 'uploaded' 
+                          ? 'bg-zinc-800/80 text-zinc-300 border border-zinc-700/50' 
+                          : file.status === 'uploading'
+                          ? 'bg-zinc-700/80 text-zinc-200 border border-zinc-600/50'
+                          : 'bg-zinc-900/80 text-zinc-400 border border-zinc-800/50'
+                      }`}>
+                        {file.status === 'uploaded' ? 'Ready' : 
+                         file.status === 'uploading' ? 'Uploading' : 'Error'}
+                      </span>
+                    </div>
+                    {file.status === 'uploaded' && (
+                                              <div className="mt-3 pt-3 border-t border-zinc-800">
+                        <button
+                          onClick={() => handleViewContent(file.cid)}
+                          className="w-full text-xs text-zinc-400 hover:text-white transition-colors text-left"
+                        >
+                          View content →
+                        </button>
+                      </div>
+                    )}
                   </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg overflow-hidden">
+                <div className="divide-y divide-zinc-800">
+                  {allFiles.map((file) => (
+                    <div key={file.id} className="p-4 hover:bg-zinc-800 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          <div className="w-8 h-8 bg-zinc-800 rounded flex items-center justify-center">
+                            {file.status === 'uploading' ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-zinc-600 border-t-white"></div>
+                            ) : (
+                              <span>{getFileIcon(file.type)}</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-white text-sm truncate">{file.name}</p>
+                            <p className="text-zinc-400 text-xs">{file.size} • {formatContentType(file.type)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm ${
+                            file.status === 'uploaded' 
+                              ? 'bg-zinc-800/80 text-zinc-300 border border-zinc-700/50' 
+                              : file.status === 'uploading'
+                              ? 'bg-zinc-700/80 text-zinc-200 border border-zinc-600/50'
+                              : 'bg-zinc-900/80 text-zinc-400 border border-zinc-800/50'
+                          }`}>
+                            {file.status === 'uploaded' ? 'Ready' : 
+                             file.status === 'uploading' ? 'Uploading' : 'Error'}
+                          </span>
+                          {file.status === 'uploaded' && (
+                            <div className="flex items-center space-x-1">
+                              <button
+                                onClick={() => handleViewContent(file.cid)}
+                                className="p-1 text-zinc-400 hover:text-white transition-colors"
+                                title="View content"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteFile(file.originalId || file.id)}
+                                className="p-1 text-zinc-400 hover:text-red-400 transition-colors"
+                                title="Delete"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* API Secrets Section */}
+        {activeSection === 'secrets' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-white">API Secrets</h1>
+                <p className="text-zinc-400">Manage your pinning secrets for programmatic access</p>
+              </div>
+              <button
+                onClick={() => setShowCreateSecret(true)}
+                className="inline-flex items-center px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                New Secret
+              </button>
+            </div>
+
+            {/* Create Secret Form */}
+            {showCreateSecret && (
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Create New API Secret</h3>
+                <div className="flex space-x-3">
+                  <input
+                    type="text"
+                    placeholder="Secret name (e.g., 'Production API')"
+                    value={newSecretName}
+                    onChange={(e) => setNewSecretName(e.target.value)}
+                    className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-600"
+                  />
+                  <button
+                    onClick={createPinningSecret}
+                    className="px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors"
+                  >
+                    Create
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCreateSecret(false);
+                      setNewSecretName('');
+                    }}
+                    className="px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Created Secret Display */}
+            {createdSecret && (
+              <div className="bg-zinc-900/80 backdrop-blur-sm border border-zinc-700/50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-white mb-3">Secret Created Successfully</h3>
+                <p className="text-zinc-300 mb-4">Copy this secret now. It won't be shown again.</p>
+                <div className="bg-zinc-800/80 backdrop-blur-sm border border-zinc-700/50 rounded-md p-3 font-mono text-sm text-zinc-100 mb-4 break-all">
+                  {createdSecret}
+                </div>
+                <div className="flex space-x-3">
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(createdSecret);
                       alert('Copied to clipboard!');
                     }}
-                    className="mt-3 bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700"
+                    className="px-4 py-2 bg-white/90 text-black rounded-md hover:bg-white transition-colors"
                   >
-                    Copy to Clipboard
+                    Copy
                   </button>
                   <button
                     onClick={() => setCreatedSecret(null)}
-                    className="mt-3 ml-3 bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-700"
+                    className="px-4 py-2 bg-zinc-800/80 backdrop-blur-sm text-zinc-300 border border-zinc-700/50 rounded-md hover:bg-zinc-700/80 transition-colors"
                   >
                     Close
                   </button>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Pinning Secrets List */}
-              <div className="space-y-4">
-                {pinningSecrets.length === 0 ? (
-                  <p className="text-gray-500 text-sm">No pinning secrets created yet.</p>
-                ) : (
-                  pinningSecrets.map((secret) => (
-                    <div key={secret.id} className="border border-gray-200 rounded-lg p-4">
+            {/* Secrets List */}
+            {pinningSecrets.length === 0 ? (
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-12 text-center">
+                <div className="mx-auto w-16 h-16 bg-zinc-800 rounded-lg flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 12H9v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4c0-7.2 5.3-13.2 12.5-12.5A6 6 0 0115 7z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-white mb-2">No API secrets yet</h3>
+                <p className="text-zinc-400 mb-6">Create your first secret to start using the API</p>
+                <button
+                  onClick={() => setShowCreateSecret(true)}
+                  className="inline-flex items-center px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors"
+                >
+                  Create Secret
+                </button>
+              </div>
+            ) : (
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg overflow-hidden">
+                <div className="divide-y divide-zinc-800">
+                  {pinningSecrets.map((secret) => (
+                    <div key={secret.id} className="p-6">
                       <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium text-gray-900">{secret.name}</h4>
-                          <p className="text-sm text-gray-500">
-                            {secret.prefix}••••••••••••••••••••
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <h4 className="font-semibold text-white">{secret.name}</h4>
+                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm ${
+                              secret.isActive 
+                                ? 'bg-zinc-800/80 text-zinc-300 border border-zinc-700/50' 
+                                : 'bg-zinc-900/80 text-zinc-400 border border-zinc-800/50'
+                            }`}>
+                              {secret.isActive ? 'Active' : 'Revoked'}
+                            </span>
+                          </div>
+                          <p className="text-zinc-400 font-mono text-sm mb-3">
+                            {secret.prefix}••••••••••••••••••••••••••••••••••••••••••••••
                           </p>
-                          <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                            <span>Created: {secret.createdAt}</span>
-                            <span>Last used: {secret.lastUsed}</span>
-                            <span>Usage: {secret.usageThisMonth} MB this month</span>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <p className="text-zinc-500">Created</p>
+                              <p className="text-zinc-300">{secret.createdAt}</p>
+                            </div>
+                            <div>
+                              <p className="text-zinc-500">Last used</p>
+                              <p className="text-zinc-300">{secret.lastUsed}</p>
+                            </div>
+                            <div>
+                              <p className="text-zinc-500">Usage this month</p>
+                              <p className="text-zinc-300">{secret.usageThisMonth} MB</p>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            secret.isActive 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {secret.isActive ? 'Active' : 'Revoked'}
-                          </span>
+                        <div className="ml-6">
                           {secret.isActive && (
                             <button
                               onClick={() => revokePinningSecret(secret.id)}
-                              className="bg-red-600 text-white px-3 py-1 rounded-md text-sm font-medium hover:bg-red-700"
+                              className="px-4 py-2 bg-zinc-800/80 backdrop-blur-sm text-zinc-300 border border-zinc-700/50 rounded-md hover:bg-zinc-700/80 transition-colors"
                             >
                               Revoke
                             </button>
@@ -884,13 +1290,81 @@ export default function Dashboard() {
                         </div>
                       </div>
                     </div>
-                  ))
-                )}
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Settings Section */}
+        {activeSection === 'settings' && (
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Settings</h1>
+              <p className="text-zinc-400">Manage your account and preferences</p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Account Info */}
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Account Information</h3>
+                <div className="space-y-4">
+                                      <div>
+                      <label className="block text-sm font-medium text-zinc-400 mb-1">Email</label>
+                      <p className="text-white">{getUserEmail()}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-400 mb-1">Plan</label>
+                      <p className="text-white capitalize">{userStats?.planType || 'free'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-400 mb-1">Storage Used</label>
+                    <p className="text-white">
+                      {userStats ? `${formatFileSize(userStats.storageUsed)} of ${formatFileSize(userStats.storageLimit)}` : 'Loading...'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
+                <div className="space-y-3">
+                                      <button
+                      onClick={() => router.push('/gateway')}
+                      className="w-full flex items-center justify-between p-3 bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors"
+                    >
+                                          <div className="flex items-center">
+                        <svg className="w-5 h-5 text-zinc-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        <span className="text-white">Test Gateway</span>
+                      </div>
+                      <svg className="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center justify-between p-3 bg-zinc-800/80 backdrop-blur-sm hover:bg-zinc-700/80 rounded-md transition-colors border border-zinc-700/50"
+                  >
+                    <div className="flex items-center">
+                      <svg className="w-5 h-5 text-zinc-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      <span className="text-zinc-300">Sign Out</span>
+                    </div>
+                    <svg className="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 } 
