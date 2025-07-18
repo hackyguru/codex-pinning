@@ -43,12 +43,23 @@ export default function Dashboard() {
   const [showCreateSecret, setShowCreateSecret] = useState(false);
   const [newSecretName, setNewSecretName] = useState('');
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<'overview' | 'files' | 'secrets' | 'settings'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'files' | 'secrets' | 'settings' | 'gateway'>('overview');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [uploadMode, setUploadMode] = useState<'drag-drop' | 'api'>('drag-drop');
   const [selectedCodeExample, setSelectedCodeExample] = useState<'curl' | 'javascript' | 'python' | 'node'>('curl');
+  
+  // Gateway state
+  const [gatewayCid, setGatewayCid] = useState('');
+  const [gatewayTestResult, setGatewayTestResult] = useState<{
+    status: number;
+    success: boolean;
+    message: string;
+    contentType?: string;
+    contentLength?: string;
+  } | null>(null);
+  const [isGatewayLoading, setIsGatewayLoading] = useState(false);
 
   // Utility functions
   const getFileIcon = (contentType: string) => {
@@ -464,6 +475,76 @@ export default function Dashboard() {
     }
   };
 
+  // Gateway functions
+  const handleTestGateway = async () => {
+    if (!gatewayCid.trim()) {
+      setGatewayTestResult({
+        status: 400,
+        success: false,
+        message: 'Please enter a CID to test'
+      });
+      return;
+    }
+
+    setIsGatewayLoading(true);
+    setGatewayTestResult(null);
+
+    try {
+      // Test the public gateway - no authentication needed
+      const response = await fetch(`/api/gateway/${gatewayCid.trim()}`);
+      
+      const contentType = response.headers.get('content-type') || 'unknown';
+      const contentLength = response.headers.get('content-length') || 'unknown';
+
+      if (response.ok) {
+        setGatewayTestResult({
+          status: response.status,
+          success: true,
+          message: 'Content successfully retrieved from Codex network',
+          contentType,
+          contentLength
+        });
+      } else {
+        let errorMessage = 'Unknown error';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage = response.statusText || 'Unknown error';
+        }
+
+        setGatewayTestResult({
+          status: response.status,
+          success: false,
+          message: errorMessage,
+          contentType,
+          contentLength
+        });
+      }
+    } catch (error) {
+      setGatewayTestResult({
+        status: 0,
+        success: false,
+        message: error instanceof Error ? error.message : 'Network error'
+      });
+    } finally {
+      setIsGatewayLoading(false);
+    }
+  };
+
+  const handleGatewayKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleTestGateway();
+    }
+  };
+
+  const getGatewayUrl = () => {
+    if (typeof window !== 'undefined' && gatewayCid.trim()) {
+      return `${window.location.origin}/api/gateway/${gatewayCid.trim()}`;
+    }
+    return '';
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
@@ -518,8 +599,13 @@ export default function Dashboard() {
     },
     {
       id: 'secrets',
-      label: 'API Secrets',
+      label: 'Pinning Secrets',
       isActive: activeSection === 'secrets',
+    },
+    {
+      id: 'gateway',
+      label: 'Gateway',
+      isActive: activeSection === 'gateway',
     },
     {
       id: 'settings',
@@ -562,7 +648,7 @@ export default function Dashboard() {
                   <input
                     ref={searchInputRef}
                     type="text"
-                    placeholder="Search files or enter CID..."
+                    placeholder="Search a CID"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="block w-64 pl-10 pr-16 py-2 border border-zinc-700 rounded-md bg-zinc-900 text-zinc-300 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-600 focus:border-zinc-600 text-sm"
@@ -688,7 +774,7 @@ export default function Dashboard() {
                           </svg>
                         </div>
                         <div>
-                          <p className="text-sm text-zinc-400 mb-1">API Secrets</p>
+                          <p className="text-sm text-zinc-400 mb-1">Pinning Secrets</p>
                         <p className="text-2xl font-semibold text-white">{pinningSecrets.length}</p>
                       </div>
                     </div>
@@ -815,7 +901,7 @@ export default function Dashboard() {
                           onClick={() => {
                             const codeSnippets = {
                               curl: `curl -X POST "${window.location.origin}/api/upload" \\
-  -H "Authorization: Bearer YOUR_API_SECRET" \\
+  -H "Authorization: Bearer YOUR_PINNING_SECRET" \\
   -F "file=@/path/to/your/file.jpg"`,
                               javascript: `const formData = new FormData();
 formData.append('file', fileInput.files[0]);
@@ -823,7 +909,7 @@ formData.append('file', fileInput.files[0]);
 fetch('${window.location.origin}/api/upload', {
   method: 'POST',
   headers: {
-    'Authorization': 'Bearer YOUR_API_SECRET'
+    'Authorization': 'Bearer YOUR_PINNING_SECRET'
   },
   body: formData
 })
@@ -832,7 +918,7 @@ fetch('${window.location.origin}/api/upload', {
                               python: `import requests
 
 url = "${window.location.origin}/api/upload"
-headers = {"Authorization": "Bearer YOUR_API_SECRET"}
+headers = {"Authorization": "Bearer YOUR_PINNING_SECRET"}
 files = {"file": open("/path/to/your/file.jpg", "rb")}
 
 response = requests.post(url, headers=headers, files=files)
@@ -843,7 +929,7 @@ form.append('file', fs.createReadStream('/path/to/your/file.jpg'));
 fetch('${window.location.origin}/api/upload', {
   method: 'POST',
   headers: {
-    'Authorization': 'Bearer YOUR_API_SECRET',
+    'Authorization': 'Bearer YOUR_PINNING_SECRET',
     ...form.getHeaders()
   },
   body: form
@@ -865,7 +951,7 @@ fetch('${window.location.origin}/api/upload', {
                           <div className="space-y-1">
                             <div className="text-zinc-500"># Upload a file using cURL</div>
                             <div><span className="text-zinc-400">curl</span> <span className="text-white">-X POST</span> <span className="text-zinc-300">"{window.location.origin}/api/upload"</span> <span className="text-white">\</span></div>
-                            <div className="ml-2"><span className="text-white">-H</span> <span className="text-zinc-300">"Authorization: Bearer YOUR_API_SECRET"</span> <span className="text-white">\</span></div>
+                            <div className="ml-2"><span className="text-white">-H</span> <span className="text-zinc-300">"Authorization: Bearer YOUR_PINNING_SECRET"</span> <span className="text-white">\</span></div>
                             <div className="ml-2"><span className="text-white">-F</span> <span className="text-zinc-300">"file=@/path/to/your/file.jpg"</span></div>
                           </div>
                         )}
@@ -878,7 +964,7 @@ fetch('${window.location.origin}/api/upload', {
                             <div><span className="text-yellow-400">fetch</span><span className="text-zinc-400">(</span><span className="text-green-400">'{window.location.origin}/api/upload'</span><span className="text-zinc-400">,</span> <span className="text-zinc-400">{'{'}</span></div>
                             <div className="ml-2"><span className="text-white">method</span><span className="text-zinc-400">:</span> <span className="text-green-400">'POST'</span><span className="text-zinc-400">,</span></div>
                             <div className="ml-2"><span className="text-white">headers</span><span className="text-zinc-400">:</span> <span className="text-zinc-400">{'{'}</span></div>
-                            <div className="ml-4"><span className="text-green-400">'Authorization'</span><span className="text-zinc-400">:</span> <span className="text-green-400">'Bearer YOUR_API_SECRET'</span></div>
+                            <div className="ml-4"><span className="text-green-400">'Authorization'</span><span className="text-zinc-400">:</span> <span className="text-green-400">'Bearer YOUR_PINNING_SECRET'</span></div>
                             <div className="ml-2"><span className="text-zinc-400">{'}'}</span><span className="text-zinc-400">,</span></div>
                             <div className="ml-2"><span className="text-white">body</span><span className="text-zinc-400">:</span> <span className="text-white">formData</span></div>
                             <div><span className="text-zinc-400">{'}'}</span><span className="text-zinc-400">)</span></div>
@@ -892,7 +978,7 @@ fetch('${window.location.origin}/api/upload', {
                             <div><span className="text-blue-400">import</span> <span className="text-white">requests</span></div>
                             <div className="mt-2"></div>
                             <div><span className="text-white">url</span> <span className="text-zinc-400">=</span> <span className="text-green-400">"{window.location.origin}/api/upload"</span></div>
-                            <div><span className="text-white">headers</span> <span className="text-zinc-400">=</span> <span className="text-zinc-400">{'{'}</span><span className="text-green-400">"Authorization"</span><span className="text-zinc-400">:</span> <span className="text-green-400">"Bearer YOUR_API_SECRET"</span><span className="text-zinc-400">{'}'}</span></div>
+                            <div><span className="text-white">headers</span> <span className="text-zinc-400">=</span> <span className="text-zinc-400">{'{'}</span><span className="text-green-400">"Authorization"</span><span className="text-zinc-400">:</span> <span className="text-green-400">"Bearer YOUR_PINNING_SECRET"</span><span className="text-zinc-400">{'}'}</span></div>
                             <div><span className="text-white">files</span> <span className="text-zinc-400">=</span> <span className="text-zinc-400">{'{'}</span><span className="text-green-400">"file"</span><span className="text-zinc-400">:</span> <span className="text-yellow-400">open</span><span className="text-zinc-400">(</span><span className="text-green-400">"/path/to/your/file.jpg"</span><span className="text-zinc-400">,</span> <span className="text-green-400">"rb"</span><span className="text-zinc-400">)</span><span className="text-zinc-400">{'}'}</span></div>
                             <div className="mt-2"></div>
                             <div><span className="text-white">response</span> <span className="text-zinc-400">=</span> <span className="text-white">requests</span><span className="text-zinc-400">.</span><span className="text-yellow-400">post</span><span className="text-zinc-400">(</span><span className="text-white">url</span><span className="text-zinc-400">,</span> <span className="text-white">headers</span><span className="text-zinc-400">=</span><span className="text-white">headers</span><span className="text-zinc-400">,</span> <span className="text-white">files</span><span className="text-zinc-400">=</span><span className="text-white">files</span><span className="text-zinc-400">)</span></div>
@@ -908,7 +994,7 @@ fetch('${window.location.origin}/api/upload', {
                             <div><span className="text-yellow-400">fetch</span><span className="text-zinc-400">(</span><span className="text-green-400">'{window.location.origin}/api/upload'</span><span className="text-zinc-400">,</span> <span className="text-zinc-400">{'{'}</span></div>
                             <div className="ml-2"><span className="text-white">method</span><span className="text-zinc-400">:</span> <span className="text-green-400">'POST'</span><span className="text-zinc-400">,</span></div>
                             <div className="ml-2"><span className="text-white">headers</span><span className="text-zinc-400">:</span> <span className="text-zinc-400">{'{'}</span></div>
-                            <div className="ml-4"><span className="text-green-400">'Authorization'</span><span className="text-zinc-400">:</span> <span className="text-green-400">'Bearer YOUR_API_SECRET'</span><span className="text-zinc-400">,</span></div>
+                            <div className="ml-4"><span className="text-green-400">'Authorization'</span><span className="text-zinc-400">:</span> <span className="text-green-400">'Bearer YOUR_PINNING_SECRET'</span><span className="text-zinc-400">,</span></div>
                             <div className="ml-4"><span className="text-zinc-400">...</span><span className="text-white">form</span><span className="text-zinc-400">.</span><span className="text-yellow-400">getHeaders</span><span className="text-zinc-400">()</span></div>
                             <div className="ml-2"><span className="text-zinc-400">{'}'}</span><span className="text-zinc-400">,</span></div>
                             <div className="ml-2"><span className="text-white">body</span><span className="text-zinc-400">:</span> <span className="text-white">form</span></div>
@@ -947,18 +1033,18 @@ fetch('${window.location.origin}/api/upload', {
                             <p className="text-zinc-400 text-xs">{file.size}</p>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm ${
-                            file.status === 'uploaded' 
-                              ? 'bg-zinc-800/80 text-zinc-300 border border-zinc-700/50' 
-                              : file.status === 'uploading'
-                              ? 'bg-zinc-700/80 text-zinc-200 border border-zinc-600/50'
-                              : 'bg-zinc-900/80 text-zinc-400 border border-zinc-800/50'
-                          }`}>
-                            {file.status === 'uploaded' ? 'Ready' : 
-                             file.status === 'uploading' ? 'Uploading' : 'Error'}
-                          </span>
-                        </div>
+                                              <div className="flex items-center space-x-2">
+                        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm ${
+                          file.status === 'uploaded' 
+                            ? 'bg-zinc-800/80 text-zinc-300 border border-zinc-700/50' 
+                            : file.status === 'uploading'
+                            ? 'bg-zinc-700/80 text-zinc-200 border border-zinc-600/50'
+                            : 'bg-zinc-900/80 text-zinc-400 border border-zinc-800/50'
+                        }`}>
+                          {file.status === 'uploaded' ? 'Pinned' : 
+                           file.status === 'uploading' ? 'Uploading' : 'Error'}
+                        </span>
+                      </div>
                       </div>
                     ))}
                   </div>
@@ -1069,7 +1155,7 @@ fetch('${window.location.origin}/api/upload', {
                           ? 'bg-zinc-700/80 text-zinc-200 border border-zinc-600/50'
                           : 'bg-zinc-900/80 text-zinc-400 border border-zinc-800/50'
                       }`}>
-                        {file.status === 'uploaded' ? 'Ready' : 
+                        {file.status === 'uploaded' ? 'Pinned' : 
                          file.status === 'uploading' ? 'Uploading' : 'Error'}
                       </span>
                     </div>
@@ -1113,7 +1199,7 @@ fetch('${window.location.origin}/api/upload', {
                               ? 'bg-zinc-700/80 text-zinc-200 border border-zinc-600/50'
                               : 'bg-zinc-900/80 text-zinc-400 border border-zinc-800/50'
                           }`}>
-                            {file.status === 'uploaded' ? 'Ready' : 
+                            {file.status === 'uploaded' ? 'Pinned' : 
                              file.status === 'uploading' ? 'Uploading' : 'Error'}
                           </span>
                           {file.status === 'uploaded' && (
@@ -1153,7 +1239,7 @@ fetch('${window.location.origin}/api/upload', {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-white">API Secrets</h1>
+                <h1 className="text-2xl font-bold text-white">Pinning Secrets</h1>
                 <p className="text-zinc-400">Manage your pinning secrets for programmatic access</p>
               </div>
               <button
@@ -1170,7 +1256,7 @@ fetch('${window.location.origin}/api/upload', {
             {/* Create Secret Form */}
             {showCreateSecret && (
               <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-4">Create New API Secret</h3>
+                <h3 className="text-lg font-semibold text-white mb-4">Create New Pinning Secret</h3>
                 <div className="flex space-x-3">
                   <input
                     type="text"
@@ -1234,7 +1320,7 @@ fetch('${window.location.origin}/api/upload', {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 12H9v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4c0-7.2 5.3-13.2 12.5-12.5A6 6 0 0115 7z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-medium text-white mb-2">No API secrets yet</h3>
+                <h3 className="text-lg font-medium text-white mb-2">No pinning secrets yet</h3>
                 <p className="text-zinc-400 mb-6">Create your first secret to start using the API</p>
                 <button
                   onClick={() => setShowCreateSecret(true)}
@@ -1297,6 +1383,153 @@ fetch('${window.location.origin}/api/upload', {
           </div>
         )}
 
+        {/* Gateway Section */}
+        {activeSection === 'gateway' && (
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Public Codex Gateway</h1>
+              <p className="text-zinc-400">Access any Codex content - no authentication required</p>
+            </div>
+
+            {/* Info Section */}
+            <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+              <div className="flex items-start space-x-4">
+                <div className="w-10 h-10 bg-zinc-800/80 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                  <svg className="h-5 w-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-white mb-3">Public Gateway Access</h3>
+                  <p className="text-zinc-400 mb-4">This gateway provides public access to Codex content with no authentication required.</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 bg-white/80 rounded-full mr-3"></div>
+                      <span className="text-sm text-zinc-300">No authentication required</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 bg-white/80 rounded-full mr-3"></div>
+                      <span className="text-sm text-zinc-300">URLs are shareable with anyone</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 bg-white/80 rounded-full mr-3"></div>
+                      <span className="text-sm text-zinc-300">Works from any browser or application</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 bg-white/80 rounded-full mr-3"></div>
+                      <span className="text-sm text-zinc-300">CORS enabled for web app integration</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Test Form */}
+            <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+              <h2 className="text-xl font-semibold text-white mb-6">Test Gateway Access</h2>
+              
+              <div className="space-y-6">
+                <div>
+                  <label htmlFor="gateway-cid" className="block text-sm font-medium text-zinc-300 mb-3">
+                    Codex CID
+                  </label>
+                  <input
+                    type="text"
+                    id="gateway-cid"
+                    value={gatewayCid}
+                    onChange={(e) => setGatewayCid(e.target.value)}
+                    onKeyPress={handleGatewayKeyPress}
+                    placeholder="e.g., QmYyQSo1c1Ym7orWxLYvCrM2EmxFTANf8wXmmE7DWjhx5N"
+                    className="block w-full px-4 py-3 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-600 focus:border-zinc-600"
+                  />
+                </div>
+
+
+
+                <div className="flex space-x-4">
+                  <button
+                    onClick={handleTestGateway}
+                    disabled={isGatewayLoading || !gatewayCid.trim()}
+                    className="inline-flex items-center px-6 py-3 rounded-lg font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed bg-white text-black hover:bg-zinc-100"
+                  >
+                    {isGatewayLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-zinc-600 border-t-black mr-2"></div>
+                        Loading...
+                      </>
+                    ) : (
+                      'Access Content'
+                    )}
+                  </button>
+
+                  {gatewayCid.trim() && gatewayTestResult?.success && (
+                    <a
+                      href={getGatewayUrl()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-6 py-3 bg-zinc-800/80 backdrop-blur-sm hover:bg-zinc-700/80 border border-zinc-700/50 text-zinc-300 hover:text-white rounded-lg font-medium transition-all duration-300"
+                    >
+                      Open Content
+                      <svg className="ml-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Test Results */}
+            {gatewayTestResult && (
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+                <h2 className="text-xl font-semibold text-white mb-6">Results</h2>
+                
+                <div className={`backdrop-blur-sm rounded-lg p-4 border ${
+                  gatewayTestResult.success 
+                    ? 'bg-zinc-800/50 border-zinc-700/50' 
+                    : 'bg-zinc-900/50 border-zinc-800/50'
+                }`}>
+                  <div className="flex items-start space-x-4">
+                    <div className="w-10 h-10 bg-zinc-800/80 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                      {gatewayTestResult.success ? (
+                        <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : (
+                        <svg className="h-5 w-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className={`text-lg font-semibold ${
+                        gatewayTestResult.success ? 'text-white' : 'text-zinc-300'
+                      }`}>
+                        Status: {gatewayTestResult.status} - {gatewayTestResult.success ? 'Success' : 'Error'}
+                      </h3>
+                      <p className={`mt-2 ${
+                        gatewayTestResult.success ? 'text-zinc-300' : 'text-zinc-400'
+                      }`}>
+                        {gatewayTestResult.message}
+                      </p>
+                      {gatewayTestResult.contentType && (
+                        <div className="mt-3 text-sm text-zinc-400">
+                          <p><strong className="text-zinc-300">Content Type:</strong> {gatewayTestResult.contentType}</p>
+                          {gatewayTestResult.contentLength && (
+                            <p><strong className="text-zinc-300">Content Length:</strong> {gatewayTestResult.contentLength} bytes</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+
+          </div>
+        )}
+
         {/* Settings Section */}
         {activeSection === 'settings' && (
           <div className="space-y-6">
@@ -1332,7 +1565,7 @@ fetch('${window.location.origin}/api/upload', {
                 <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
                 <div className="space-y-3">
                                       <button
-                      onClick={() => router.push('/gateway')}
+                      onClick={() => setActiveSection('gateway')}
                       className="w-full flex items-center justify-between p-3 bg-zinc-800 hover:bg-zinc-700 rounded-md transition-colors"
                     >
                                           <div className="flex items-center">
