@@ -43,7 +43,7 @@ export default function Dashboard() {
   const [showCreateSecretModal, setShowCreateSecretModal] = useState(false);
   const [newSecretName, setNewSecretName] = useState('');
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<'overview' | 'files' | 'secrets' | 'gateway' | 'migrations' | 'settings'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'files' | 'replication' | 'secrets' | 'gateway' | 'migrations' | 'settings'>('overview');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -608,9 +608,9 @@ export default function Dashboard() {
       isActive: activeSection === 'files',
     },
     {
-      id: 'secrets',
-      label: 'Pinning Secrets',
-      isActive: activeSection === 'secrets',
+      id: 'replication',
+      label: 'Replication',
+      isActive: activeSection === 'replication',
     },
     {
       id: 'gateway',
@@ -621,6 +621,11 @@ export default function Dashboard() {
       id: 'migrations',
       label: 'Migrations',
       isActive: activeSection === 'migrations',
+    },
+    {
+      id: 'secrets',
+      label: 'Pinning Secrets',
+      isActive: activeSection === 'secrets',
     },
     {
       id: 'settings',
@@ -1246,6 +1251,306 @@ fetch('${window.location.origin}/api/upload', {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Replication Section */}
+        {activeSection === 'replication' && (
+          <div className="relative">
+            {/* Coming Soon Overlay */}
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg min-h-[600px]">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-zinc-800/80 backdrop-blur-sm rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-2">Coming Soon</h2>
+                <p className="text-zinc-400 max-w-md">
+                  Advanced replication management features are currently in development. Check back soon for comprehensive replication controls and monitoring.
+                </p>
+              </div>
+            </div>
+            
+            {/* Blurred Content */}
+            <div className="blur-[1px] pointer-events-none space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-white">Replication Management</h1>
+                <p className="text-zinc-400">Configure data redundancy and replication rules for your files</p>
+              </div>
+              <button className="inline-flex items-center px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                New Rule
+              </button>
+            </div>
+
+            {/* Global Replication Settings */}
+            <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+              <h2 className="text-xl font-semibold text-white mb-6">Global Replication Settings</h2>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                      Default Minimum Copies
+                    </label>
+                    <select className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-zinc-600">
+                      <option value="2">2 copies</option>
+                      <option value="3" selected>3 copies</option>
+                      <option value="4">4 copies</option>
+                      <option value="5">5 copies</option>
+                    </select>
+                    <p className="text-xs text-zinc-500 mt-1">Minimum number of copies to maintain across the network</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                      Default Maximum Copies
+                    </label>
+                    <select className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-zinc-600">
+                      <option value="5">5 copies</option>
+                      <option value="10" selected>10 copies</option>
+                      <option value="15">15 copies</option>
+                      <option value="20">20 copies</option>
+                    </select>
+                    <p className="text-xs text-zinc-500 mt-1">Maximum number of copies to prevent over-replication</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                      Replication Strategy
+                    </label>
+                    <select className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-zinc-600">
+                      <option value="balanced" selected>Balanced Distribution</option>
+                      <option value="performance">Performance Optimized</option>
+                      <option value="geographic">Geographic Distribution</option>
+                      <option value="cost">Cost Optimized</option>
+                    </select>
+                    <p className="text-xs text-zinc-500 mt-1">Strategy for distributing copies across nodes</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                      Auto-healing
+                    </label>
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        defaultChecked
+                        className="w-4 h-4 text-white bg-zinc-700 border-zinc-600 rounded focus:ring-zinc-500"
+                      />
+                      <span className="text-white text-sm">Enable automatic replication repair</span>
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-1">Automatically create new copies if existing ones fail</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end mt-6">
+                <button className="px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors">
+                  Save Settings
+                </button>
+              </div>
+            </div>
+
+            {/* Current Replication Rules */}
+            <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-white">File Replication Rules</h2>
+                <div className="flex items-center space-x-3">
+                  <span className="text-sm text-zinc-400">4 active rules</span>
+                  <button className="text-sm text-zinc-400 hover:text-white transition-colors">
+                    View all →
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  { pattern: "*.mp4", minCopies: 5, maxCopies: 15, status: "active", files: 12 },
+                  { pattern: "*.jpg", minCopies: 3, maxCopies: 8, status: "active", files: 245 },
+                  { pattern: "documents/*", minCopies: 4, maxCopies: 10, status: "active", files: 67 },
+                  { pattern: "backup/*", minCopies: 2, maxCopies: 5, status: "paused", files: 34 }
+                ].map((rule, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 bg-zinc-800/30 backdrop-blur-sm border border-zinc-700/30 rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 bg-zinc-800/80 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                        <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-white">{rule.pattern}</h4>
+                        <p className="text-sm text-zinc-400">
+                          {rule.minCopies}-{rule.maxCopies} copies • {rule.files} files
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm ${
+                        rule.status === 'active'
+                          ? 'bg-zinc-800/80 text-zinc-300 border border-zinc-700/50'
+                          : 'bg-zinc-900/80 text-zinc-400 border border-zinc-800/50'
+                      }`}>
+                        {rule.status}
+                      </span>
+                      <button className="p-1 text-zinc-400 hover:text-white transition-colors">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Replication Status Overview */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">Network Health</h3>
+                  <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">Active Nodes</span>
+                    <span className="text-white">847</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">Avg Response Time</span>
+                    <span className="text-white">124ms</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">Success Rate</span>
+                    <span className="text-white">99.8%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">Replication Status</h3>
+                  <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                  </svg>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">Well Replicated</span>
+                    <span className="text-white">342 files</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">Under Replicated</span>
+                    <span className="text-yellow-400">12 files</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">Failed Copies</span>
+                    <span className="text-red-400">3 files</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
+                  <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">New Copies</span>
+                    <span className="text-white">24 today</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">Repairs</span>
+                    <span className="text-white">7 today</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">Last Check</span>
+                    <span className="text-white">2m ago</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Individual File Management */}
+            <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-white">File-Specific Replication</h2>
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="text"
+                    placeholder="Search files..."
+                    className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-600 text-sm"
+                  />
+                  <select className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-zinc-600 text-sm">
+                    <option>All files</option>
+                    <option>Under-replicated</option>
+                    <option>Over-replicated</option>
+                    <option>Custom rules</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {[
+                  { name: "video_presentation.mp4", size: "245 MB", copies: 8, target: "5-15", status: "healthy" },
+                  { name: "project_documents.zip", size: "67 MB", copies: 2, target: "4-10", status: "under" },
+                  { name: "backup_2024.tar.gz", size: "1.2 GB", copies: 1, target: "2-5", status: "critical" },
+                  { name: "profile_image.jpg", size: "3 MB", copies: 12, target: "3-8", status: "over" }
+                ].map((file, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 bg-zinc-800/30 backdrop-blur-sm border border-zinc-700/30 rounded-lg hover:bg-zinc-800/50 transition-colors">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-8 h-8 bg-zinc-800 rounded flex items-center justify-center">
+                        <span className="text-sm">📁</span>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-white text-sm">{file.name}</h4>
+                        <p className="text-xs text-zinc-400">{file.size}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <div className="text-right">
+                        <p className="text-sm text-white">{file.copies} copies</p>
+                        <p className="text-xs text-zinc-400">Target: {file.target}</p>
+                      </div>
+                      <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm ${
+                        file.status === 'healthy' ? 'bg-zinc-800/80 text-zinc-300 border border-zinc-700/50' :
+                        file.status === 'under' ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-700/50' :
+                        file.status === 'critical' ? 'bg-red-900/50 text-red-300 border border-red-700/50' :
+                        'bg-blue-900/50 text-blue-300 border border-blue-700/50'
+                      }`}>
+                        {file.status === 'healthy' ? 'Healthy' :
+                         file.status === 'under' ? 'Under-replicated' :
+                         file.status === 'critical' ? 'Critical' :
+                         'Over-replicated'}
+                      </span>
+                      <button className="p-1 text-zinc-400 hover:text-white transition-colors">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 text-center">
+                <button className="text-sm text-zinc-400 hover:text-white transition-colors">
+                  Load more files →
+                </button>
+              </div>
+                         </div>
+
+            </div>
           </div>
         )}
 
