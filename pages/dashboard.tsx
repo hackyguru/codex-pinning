@@ -696,9 +696,12 @@ export default function Dashboard() {
               <div className="flex items-center space-x-3">
                 <button
                   onClick={handleLogout}
-                  className="text-zinc-400 hover:text-white transition-colors text-sm"
+                  className="p-2 text-zinc-400 hover:text-white transition-colors rounded-md hover:bg-zinc-800"
+                  title="Sign out"
                 >
-                  Sign out
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -1279,7 +1282,7 @@ fetch('${window.location.origin}/api/upload', {
                 <h1 className="text-2xl font-bold text-white">Replication Management</h1>
                 <p className="text-zinc-400">Configure data redundancy and replication rules for your files</p>
               </div>
-              <button className="inline-flex items-center px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors">
+              <button className="inline-flex items-center px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm">
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
@@ -1352,7 +1355,7 @@ fetch('${window.location.origin}/api/upload', {
               </div>
 
               <div className="flex justify-end mt-6">
-                <button className="px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors">
+                <button className="px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm">
                   Save Settings
                 </button>
               </div>
@@ -1564,7 +1567,7 @@ fetch('${window.location.origin}/api/upload', {
               </div>
               <button
                 onClick={() => setShowCreateSecretModal(true)}
-                className="inline-flex items-center px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors"
+                className="inline-flex items-center px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -1602,7 +1605,7 @@ fetch('${window.location.origin}/api/upload', {
                     <div className="flex space-x-3">
                       <button
                         onClick={createPinningSecret}
-                        className="flex-1 px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors"
+                        className="flex-1 px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm"
                       >
                         Create Secret
                       </button>
@@ -1611,7 +1614,7 @@ fetch('${window.location.origin}/api/upload', {
                           setShowCreateSecretModal(false);
                           setNewSecretName('');
                         }}
-                        className="flex-1 px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors"
+                        className="flex-1 px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors font-medium text-sm"
                       >
                         Cancel
                       </button>
@@ -1705,7 +1708,7 @@ fetch('${window.location.origin}/api/upload', {
                           {secret.isActive && (
                             <button
                               onClick={() => revokePinningSecret(secret.id)}
-                              className="px-4 py-2 bg-zinc-800/80 backdrop-blur-sm text-zinc-300 border border-zinc-700/50 rounded-md hover:bg-zinc-700/80 transition-colors"
+                              className=" px-4 py-2 rounded-md font-medium text-sm bg-zinc-800/80 backdrop-blur-sm text-zinc-300 border border-zinc-700/50 hover:bg-zinc-700/80 transition-colors"
                             >
                               Revoke
                             </button>
@@ -1787,7 +1790,7 @@ fetch('${window.location.origin}/api/upload', {
                   <button
                     onClick={handleTestGateway}
                     disabled={isGatewayLoading || !gatewayCid.trim()}
-                    className="inline-flex items-center px-6 py-3 rounded-lg font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed bg-white text-black hover:bg-zinc-100"
+                    className="inline-flex items-center px-4 py-2 rounded-md font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-white text-black hover:bg-zinc-100"
                   >
                     {isGatewayLoading ? (
                       <>
@@ -1804,7 +1807,7 @@ fetch('${window.location.origin}/api/upload', {
                       href={getGatewayUrl()}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center px-6 py-3 bg-zinc-800/80 backdrop-blur-sm hover:bg-zinc-700/80 border border-zinc-700/50 text-zinc-300 hover:text-white rounded-lg font-medium transition-all duration-300"
+                      className="inline-flex items-center px-4 py-2 bg-zinc-800/80 backdrop-blur-sm hover:bg-zinc-700/80 border border-zinc-700/50 text-zinc-300 hover:text-white rounded-md font-medium text-sm transition-colors"
                     >
                       Open Content
                       <svg className="ml-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1965,7 +1968,7 @@ fetch('${window.location.origin}/api/upload', {
                    <button
                      onClick={() => setIsMigrating(true)}
                      disabled={isMigrating || !migrationCid.trim()}
-                     className="inline-flex items-center px-6 py-3 rounded-lg font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed bg-white text-black hover:bg-zinc-100"
+                     className="inline-flex items-center px-4 py-2 rounded-md font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-white text-black hover:bg-zinc-100"
                    >
                      {isMigrating ? (
                        <>
