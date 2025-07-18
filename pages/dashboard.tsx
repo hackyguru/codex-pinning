@@ -1258,8 +1258,8 @@ fetch('${window.location.origin}/api/upload', {
         {activeSection === 'replication' && (
           <div className="relative">
             {/* Coming Soon Overlay */}
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg min-h-[600px]">
-              <div className="text-center">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-10 rounded-lg">
+              <div className="absolute top-64 left-1/2 transform -translate-x-1/2 text-center">
                 <div className="w-16 h-16 bg-zinc-800/80 backdrop-blur-sm rounded-lg flex items-center justify-center mx-auto mb-4">
                   <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
@@ -1871,8 +1871,8 @@ fetch('${window.location.origin}/api/upload', {
         {activeSection === 'migrations' && (
           <div className="relative">
             {/* Coming Soon Overlay */}
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
-              <div className="text-center">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-10 rounded-lg">
+              <div className="absolute top-64 left-1/2 transform -translate-x-1/2 text-center">
                 <div className="w-16 h-16 bg-zinc-800/80 backdrop-blur-sm rounded-lg flex items-center justify-center mx-auto mb-4">
                   <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
