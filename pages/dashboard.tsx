@@ -40,7 +40,7 @@ export default function Dashboard() {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [databaseFiles, setDatabaseFiles] = useState<FileWithFormatted[]>([]);
   const [pinningSecrets, setPinningSecrets] = useState<PinningSecret[]>([]);
-  const [showCreateSecret, setShowCreateSecret] = useState(false);
+  const [showCreateSecretModal, setShowCreateSecretModal] = useState(false);
   const [newSecretName, setNewSecretName] = useState('');
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<'overview' | 'files' | 'secrets' | 'settings' | 'gateway'>('overview');
@@ -167,7 +167,7 @@ export default function Dashboard() {
         const data = await response.json();
         setCreatedSecret(data.pinningSecret);
         setNewSecretName('');
-        setShowCreateSecret(false);
+        setShowCreateSecretModal(false);
         await loadUserData(); // Refresh the list
       } else {
         const error = await response.json();
@@ -279,11 +279,16 @@ export default function Dashboard() {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
+      // ESC key for modal
+      if (e.key === 'Escape' && showCreateSecretModal) {
+        setShowCreateSecretModal(false);
+        setNewSecretName('');
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [showCreateSecretModal]);
 
   const handleLogout = async () => {
     await logout();
@@ -1243,7 +1248,7 @@ fetch('${window.location.origin}/api/upload', {
                 <p className="text-zinc-400">Manage your pinning secrets for programmatic access</p>
               </div>
               <button
-                onClick={() => setShowCreateSecret(true)}
+                onClick={() => setShowCreateSecretModal(true)}
                 className="inline-flex items-center px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1253,33 +1258,50 @@ fetch('${window.location.origin}/api/upload', {
               </button>
             </div>
 
-            {/* Create Secret Form */}
-            {showCreateSecret && (
-              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-4">Create New Pinning Secret</h3>
-                <div className="flex space-x-3">
-                  <input
-                    type="text"
-                    placeholder="Secret name (e.g., 'Production API')"
-                    value={newSecretName}
-                    onChange={(e) => setNewSecretName(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-600"
-                  />
-                  <button
-                    onClick={createPinningSecret}
-                    className="px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors"
-                  >
-                    Create
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowCreateSecret(false);
-                      setNewSecretName('');
-                    }}
-                    className="px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors"
-                  >
-                    Cancel
-                  </button>
+            {/* Create Secret Modal */}
+            {showCreateSecretModal && (
+              <div 
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) {
+                    setShowCreateSecretModal(false);
+                    setNewSecretName('');
+                  }
+                }}
+              >
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 w-full max-w-md"
+                     onClick={(e) => e.stopPropagation()}>
+                  <h3 className="text-lg font-semibold text-white mb-4">Create New Pinning Secret</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-300 mb-2">Secret Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., 'Production API'"
+                        value={newSecretName}
+                        onChange={(e) => setNewSecretName(e.target.value)}
+                        className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-600"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={createPinningSecret}
+                        className="flex-1 px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors"
+                      >
+                        Create Secret
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowCreateSecretModal(false);
+                          setNewSecretName('');
+                        }}
+                        className="flex-1 px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -1323,7 +1345,7 @@ fetch('${window.location.origin}/api/upload', {
                 <h3 className="text-lg font-medium text-white mb-2">No pinning secrets yet</h3>
                 <p className="text-zinc-400 mb-6">Create your first secret to start using the API</p>
                 <button
-                  onClick={() => setShowCreateSecret(true)}
+                  onClick={() => setShowCreateSecretModal(true)}
                   className="inline-flex items-center px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors"
                 >
                   Create Secret
