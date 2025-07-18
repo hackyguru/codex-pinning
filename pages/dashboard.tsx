@@ -43,7 +43,7 @@ export default function Dashboard() {
   const [showCreateSecretModal, setShowCreateSecretModal] = useState(false);
   const [newSecretName, setNewSecretName] = useState('');
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<'overview' | 'files' | 'secrets' | 'settings' | 'gateway'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'files' | 'secrets' | 'gateway' | 'migrations' | 'settings'>('overview');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -60,6 +60,11 @@ export default function Dashboard() {
     contentLength?: string;
   } | null>(null);
   const [isGatewayLoading, setIsGatewayLoading] = useState(false);
+
+  // Migrations state
+  const [selectedNetwork, setSelectedNetwork] = useState<'ipfs' | 'arweave' | 'storj'>('ipfs');
+  const [migrationCid, setMigrationCid] = useState('');
+  const [isMigrating, setIsMigrating] = useState(false);
 
   // Utility functions
   const getFileIcon = (contentType: string) => {
@@ -611,6 +616,11 @@ export default function Dashboard() {
       id: 'gateway',
       label: 'Gateway',
       isActive: activeSection === 'gateway',
+    },
+    {
+      id: 'migrations',
+      label: 'Migrations',
+      isActive: activeSection === 'migrations',
     },
     {
       id: 'settings',
@@ -1549,6 +1559,164 @@ fetch('${window.location.origin}/api/upload', {
             )}
 
 
+          </div>
+        )}
+
+        {/* Migrations Section */}
+        {activeSection === 'migrations' && (
+          <div className="relative">
+            {/* Coming Soon Overlay */}
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-zinc-800/80 backdrop-blur-sm rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-2">Coming Soon</h2>
+                <p className="text-zinc-400 max-w-md">
+                  Migration functionality is currently in development. Check back soon for the ability to migrate content from IPFS, Arweave, and Storj.
+                </p>
+              </div>
+            </div>
+            
+            {/* Blurred Content */}
+            <div className="blur-[1px] pointer-events-none space-y-6">
+              <div>
+                <h1 className="text-2xl font-bold text-white">Content Migrations</h1>
+                <p className="text-zinc-400">Migrate content from other decentralized networks to Third Storage</p>
+              </div>
+
+            {/* Migration Form */}
+            <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+              <h2 className="text-xl font-semibold text-white mb-6">Migrate Content</h2>
+              
+              <div className="space-y-6">
+                {/* Network Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-3">Source Network</label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {[
+                      { id: 'ipfs', name: 'IPFS', description: 'InterPlanetary File System' },
+                      { id: 'arweave', name: 'Arweave', description: 'Permanent storage blockchain' },
+                      { id: 'storj', name: 'Storj', description: 'Decentralized cloud storage' }
+                    ].map((network) => (
+                      <button
+                        key={network.id}
+                        onClick={() => setSelectedNetwork(network.id as any)}
+                        className={`p-4 rounded-lg border transition-all duration-200 text-left ${
+                          selectedNetwork === network.id
+                            ? 'bg-white/10 border-white/30 ring-1 ring-white/20'
+                            : 'bg-zinc-800/50 border-zinc-700/50 hover:bg-zinc-800/80 hover:border-zinc-600/50'
+                        }`}
+                      >
+                        <div className="font-medium text-white text-sm">{network.name}</div>
+                        <div className="text-zinc-400 text-xs mt-1">{network.description}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* CID Input */}
+                <div>
+                  <label htmlFor="migration-cid" className="block text-sm font-medium text-zinc-300 mb-3">
+                    Content Identifier (CID)
+                  </label>
+                  <input
+                    type="text"
+                    id="migration-cid"
+                    value={migrationCid}
+                    onChange={(e) => setMigrationCid(e.target.value)}
+                    placeholder={`Enter ${selectedNetwork.toUpperCase()} content identifier...`}
+                    className="block w-full px-4 py-3 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-600 focus:border-zinc-600"
+                  />
+                  <p className="text-xs text-zinc-500 mt-2">
+                    {selectedNetwork === 'ipfs' && 'Example: QmYyQSo1c1Ym7orWxLYvCrM2EmxFTANf8wXmmE7DWjhx5N'}
+                    {selectedNetwork === 'arweave' && 'Example: 43MOwz-epUGQ5tKVdIGMQ5Ti2YU4Fx0Ur-KW-LUyGYw'}
+                    {selectedNetwork === 'storj' && 'Example: jv6mfh6ffh6qj7u6k6k6k6k6k6k6k6k6k6k6k6k6k6k6'}
+                  </p>
+                </div>
+
+                                 {/* Migration Options */}
+                 <div>
+                   <label className="block text-sm font-medium text-zinc-300 mb-3">Migration Options</label>
+                   <div className="space-y-3">
+                     <div className="flex items-center justify-between p-3 bg-zinc-800/30 backdrop-blur-sm border border-zinc-700/30 rounded-lg">
+                       <div>
+                         <div className="font-medium text-white text-sm">Preserve Original Metadata</div>
+                         <div className="text-zinc-400 text-xs">Keep original timestamps and file attributes</div>
+                       </div>
+                       <input
+                         type="checkbox"
+                         defaultChecked
+                         className="w-4 h-4 text-white bg-zinc-700 border-zinc-600 rounded focus:ring-zinc-500"
+                       />
+                     </div>
+                   </div>
+                 </div>
+
+                                 {/* Migration Button */}
+                 <div className="flex space-x-4">
+                   <button
+                     onClick={() => setIsMigrating(true)}
+                     disabled={isMigrating || !migrationCid.trim()}
+                     className="inline-flex items-center px-6 py-3 rounded-lg font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed bg-white text-black hover:bg-zinc-100"
+                   >
+                     {isMigrating ? (
+                       <>
+                         <div className="animate-spin rounded-full h-5 w-5 border-2 border-zinc-600 border-t-black mr-2"></div>
+                         Migrating...
+                       </>
+                     ) : (
+                       <>
+                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                         </svg>
+                         Start Migration
+                       </>
+                     )}
+                   </button>
+                 </div>
+              </div>
+            </div>
+
+            {/* Migration Status */}
+            {isMigrating && (
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+                <h2 className="text-xl font-semibold text-white mb-6">Migration Progress</h2>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-zinc-800/80 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-zinc-600 border-t-white"></div>
+                    </div>
+                    <div>
+                      <p className="text-white font-medium">Fetching content from {selectedNetwork.toUpperCase()}</p>
+                      <p className="text-zinc-400 text-sm">Retrieving content and metadata...</p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-zinc-800/30 backdrop-blur-sm border border-zinc-700/30 rounded-lg p-4">
+                    <div className="flex justify-between text-sm text-zinc-400 mb-2">
+                      <span>Progress</span>
+                      <span>Processing...</span>
+                    </div>
+                    <div className="w-full bg-zinc-800/50 rounded-full h-2">
+                      <div className="bg-white/80 h-2 rounded-full animate-pulse" style={{ width: '65%' }}></div>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={() => setIsMigrating(false)}
+                    className="text-sm text-zinc-400 hover:text-white transition-colors"
+                  >
+                    Cancel Migration
+                  </button>
+                </div>
+              </div>
+            )}
+
+            </div>
           </div>
         )}
 
