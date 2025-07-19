@@ -824,6 +824,13 @@ export default function Dashboard() {
 
             {/* Right section - Search, Actions, User */}
             <div className="flex items-center space-x-4">
+              {/* Testnet Indicator */}
+              <div className="hidden md:flex items-center">
+                <span className="px-2 py-1 text-xs bg-orange-500/10 text-orange-400 border border-orange-500/30 rounded-md font-medium">
+                  Testnet
+                </span>
+              </div>
+              
               {/* Search */}
               <div className="hidden md:flex items-center">
                 <form onSubmit={handleSearch} className="relative">
