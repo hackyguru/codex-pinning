@@ -1,13 +1,15 @@
 -- ====================================================================
--- THIRDSTORAGE - COMPLETE DATABASE SCHEMA
+-- THIRDSTORAGE - COMPLETE DATABASE SCHEMA WITH PAYMENT PLANS
 -- ====================================================================
 -- This file contains the complete database schema for ThirdStorage
--- Including: users, files, pinning secrets, and optimized usage tracking
+-- Including: users, files, pinning secrets, subscriptions, and billing
 -- 
 -- Run this file in your Supabase SQL Editor to set up the entire database
 -- ====================================================================
 
 -- Drop existing tables if they exist (for clean setup)
+DROP TABLE IF EXISTS billing_history CASCADE;
+DROP TABLE IF EXISTS subscriptions CASCADE;
 DROP TABLE IF EXISTS pinning_secret_usage CASCADE;
 DROP TABLE IF EXISTS pinning_secret_usage_daily CASCADE;
 DROP TABLE IF EXISTS pinning_secrets CASCADE;
@@ -26,14 +28,47 @@ DROP FUNCTION IF EXISTS upsert_user_profile(TEXT, TEXT, TEXT);
 -- CORE TABLES
 -- ====================================================================
 
--- Users table (supports Privy DIDs)
+-- Users table with enhanced plan support
 CREATE TABLE users (
   id TEXT PRIMARY KEY,
   email TEXT NOT NULL,
-  plan_type TEXT NOT NULL DEFAULT 'free' CHECK (plan_type IN ('free', 'pro')),
+  plan_type TEXT NOT NULL DEFAULT 'free' CHECK (plan_type IN ('free', 'pro', 'enterprise')),
   storage_used BIGINT NOT NULL DEFAULT 0,
+  storage_limit BIGINT NOT NULL DEFAULT 10485760, -- 10MB in bytes for free plan
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Subscriptions table for tracking payment plans
+CREATE TABLE subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  plan_type TEXT NOT NULL CHECK (plan_type IN ('free', 'pro', 'enterprise')),
+  stripe_subscription_id TEXT NULL, -- Only for pro plans
+  stripe_customer_id TEXT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'canceled', 'past_due', 'incomplete')),
+  current_period_start TIMESTAMP WITH TIME ZONE,
+  current_period_end TIMESTAMP WITH TIME ZONE,
+  cancel_at_period_end BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id)
+);
+
+-- Billing history table
+CREATE TABLE billing_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  subscription_id UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
+  stripe_invoice_id TEXT NULL,
+  amount_cents INTEGER NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'usd',
+  status TEXT NOT NULL CHECK (status IN ('paid', 'pending', 'failed', 'refunded')),
+  plan_type TEXT NOT NULL,
+  billing_period_start TIMESTAMP WITH TIME ZONE,
+  billing_period_end TIMESTAMP WITH TIME ZONE,
+  paid_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Files table
@@ -85,6 +120,18 @@ CREATE TABLE pinning_secret_usage_daily (
 
 -- Users indexes
 CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_plan_type ON users(plan_type);
+
+-- Subscriptions indexes
+CREATE INDEX idx_subscriptions_user_id ON subscriptions(user_id);
+CREATE INDEX idx_subscriptions_stripe_subscription_id ON subscriptions(stripe_subscription_id);
+CREATE INDEX idx_subscriptions_status ON subscriptions(status);
+
+-- Billing history indexes
+CREATE INDEX idx_billing_history_user_id ON billing_history(user_id);
+CREATE INDEX idx_billing_history_subscription_id ON billing_history(subscription_id);
+CREATE INDEX idx_billing_history_stripe_invoice_id ON billing_history(stripe_invoice_id);
+CREATE INDEX idx_billing_history_created_at ON billing_history(created_at DESC);
 
 -- Files indexes
 CREATE INDEX idx_files_user_id ON files(user_id);
@@ -136,7 +183,23 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to upsert user profile
+-- Function to update storage limits based on plan type
+CREATE OR REPLACE FUNCTION update_storage_limits()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Update storage limits based on plan type
+  IF NEW.plan_type = 'free' THEN
+    NEW.storage_limit = 10485760; -- 10MB
+  ELSIF NEW.plan_type = 'pro' THEN
+    NEW.storage_limit = 52428800; -- 50MB
+  -- Enterprise keeps existing limit (manually set)
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to upsert user profile with plan management
 CREATE OR REPLACE FUNCTION upsert_user_profile(
   user_id TEXT,
   user_email TEXT,
@@ -145,13 +208,28 @@ CREATE OR REPLACE FUNCTION upsert_user_profile(
 RETURNS users AS $$
 DECLARE
   result users;
+  storage_limit_bytes BIGINT;
 BEGIN
-  INSERT INTO users (id, email, plan_type)
-  VALUES (user_id, user_email, user_plan_type)
+  -- Set storage limit based on plan
+  IF user_plan_type = 'free' THEN
+    storage_limit_bytes = 10485760; -- 10MB
+  ELSIF user_plan_type = 'pro' THEN
+    storage_limit_bytes = 52428800; -- 50MB
+  ELSE
+    storage_limit_bytes = 10485760; -- Default to free
+  END IF;
+
+  INSERT INTO users (id, email, plan_type, storage_limit)
+  VALUES (user_id, user_email, user_plan_type, storage_limit_bytes)
   ON CONFLICT (id) DO UPDATE SET
     email = EXCLUDED.email,
     updated_at = CURRENT_TIMESTAMP
   RETURNING * INTO result;
+  
+  -- Ensure subscription record exists
+  INSERT INTO subscriptions (user_id, plan_type, status)
+  VALUES (user_id, user_plan_type, 'active')
+  ON CONFLICT (user_id) DO NOTHING;
   
   RETURN result;
 END;
@@ -205,9 +283,21 @@ CREATE TRIGGER trigger_update_storage_delete
   FOR EACH ROW
   EXECUTE FUNCTION update_user_storage();
 
+-- Trigger to update storage limits when plan changes
+CREATE TRIGGER trigger_update_storage_limits
+  BEFORE UPDATE OF plan_type ON users
+  FOR EACH ROW
+  EXECUTE FUNCTION update_storage_limits();
+
 -- Trigger to update updated_at on users table
 CREATE TRIGGER trigger_users_updated_at
   BEFORE UPDATE ON users
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Trigger to update updated_at on subscriptions table
+CREATE TRIGGER trigger_subscriptions_updated_at
+  BEFORE UPDATE ON subscriptions
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
@@ -251,6 +341,8 @@ GROUP BY ps.id, ps.user_id, ps.name;
 
 -- Enable RLS on all tables
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE billing_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE files ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pinning_secrets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pinning_secret_usage_daily ENABLE ROW LEVEL SECURITY;
@@ -264,6 +356,20 @@ CREATE POLICY "Users can update their own data" ON users
 
 CREATE POLICY "Users can insert their own data" ON users
   FOR INSERT WITH CHECK (id = auth.uid()::text);
+
+-- Subscriptions policies
+CREATE POLICY "Users can view their own subscriptions" ON subscriptions
+  FOR SELECT USING (user_id = auth.uid()::text);
+
+CREATE POLICY "Users can update their own subscriptions" ON subscriptions
+  FOR UPDATE USING (user_id = auth.uid()::text);
+
+CREATE POLICY "Users can insert their own subscriptions" ON subscriptions
+  FOR INSERT WITH CHECK (user_id = auth.uid()::text);
+
+-- Billing history policies
+CREATE POLICY "Users can view their own billing history" ON billing_history
+  FOR SELECT USING (user_id = auth.uid()::text);
 
 -- Files policies
 CREATE POLICY "Users can view their own files" ON files
@@ -302,6 +408,12 @@ FOR SELECT USING (
 CREATE POLICY "Service role can manage all users" ON users
   FOR ALL USING (auth.role() = 'service_role');
 
+CREATE POLICY "Service role can manage all subscriptions" ON subscriptions
+  FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Service role can manage all billing history" ON billing_history
+  FOR ALL USING (auth.role() = 'service_role');
+
 CREATE POLICY "Service role can manage all files" ON files
   FOR ALL USING (auth.role() = 'service_role');
 
@@ -317,6 +429,8 @@ CREATE POLICY "Service role can manage all usage data" ON pinning_secret_usage_d
 
 -- Grant permissions to authenticated users
 GRANT SELECT, INSERT, UPDATE, DELETE ON users TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON subscriptions TO authenticated;
+GRANT SELECT ON billing_history TO authenticated;
 GRANT SELECT, INSERT, DELETE ON files TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON pinning_secrets TO authenticated;
 GRANT SELECT ON pinning_secret_usage_daily TO authenticated;
@@ -330,17 +444,6 @@ GRANT EXECUTE ON FUNCTION upsert_user_profile TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION upsert_daily_usage TO service_role;
 
 -- ====================================================================
--- COMMENTS AND DOCUMENTATION
--- ====================================================================
-
-COMMENT ON TABLE users IS 'User accounts with Privy DID support';
-COMMENT ON TABLE files IS 'File metadata and storage tracking';
-COMMENT ON TABLE pinning_secrets IS 'API authentication secrets for pinning operations';
-COMMENT ON TABLE pinning_secret_usage_daily IS 'Optimized daily aggregated usage tracking to reduce database costs';
-COMMENT ON VIEW pinning_secret_usage_summary IS 'Summarized view of pinning secret usage statistics';
-COMMENT ON FUNCTION upsert_daily_usage IS 'Efficiently upserts daily usage statistics with proper aggregation';
-
--- ====================================================================
 -- SETUP COMPLETE
 -- ====================================================================
 
@@ -350,21 +453,24 @@ BEGIN
     RAISE NOTICE '🎉 ThirdStorage Database Setup Complete!';
     RAISE NOTICE '';
     RAISE NOTICE '✅ Tables created:';
-    RAISE NOTICE '   - users (with Privy DID support)';
+    RAISE NOTICE '   - users (with plan-based storage limits)';
+    RAISE NOTICE '   - subscriptions (Stripe integration ready)';
+    RAISE NOTICE '   - billing_history (payment tracking)';
     RAISE NOTICE '   - files (with upload method tracking)';
     RAISE NOTICE '   - pinning_secrets (API authentication)';
     RAISE NOTICE '   - pinning_secret_usage_daily (optimized usage tracking)';
     RAISE NOTICE '';
+    RAISE NOTICE '✅ Payment Plans:';
+    RAISE NOTICE '   - Free: 10MB storage limit';
+    RAISE NOTICE '   - Pro: 50MB storage limit ($10/month via Stripe)';
+    RAISE NOTICE '   - Enterprise: Custom storage limit (manual billing)';
+    RAISE NOTICE '';
     RAISE NOTICE '✅ Features enabled:';
     RAISE NOTICE '   - Row Level Security (RLS)';
     RAISE NOTICE '   - Automatic storage tracking';
-    RAISE NOTICE '   - Optimized usage aggregation';
-    RAISE NOTICE '   - API rate limiting support';
+    RAISE NOTICE '   - Plan-based storage limits';
+    RAISE NOTICE '   - Stripe subscription tracking';
+    RAISE NOTICE '   - Billing history tracking';
     RAISE NOTICE '';
-    RAISE NOTICE '💰 Cost optimizations:';
-    RAISE NOTICE '   - Daily usage aggregation (99%% reduction in records)';
-    RAISE NOTICE '   - Efficient indexing';
-    RAISE NOTICE '   - In-memory rate limiting (no DB queries)';
-    RAISE NOTICE '';
-    RAISE NOTICE '🚀 Ready to use!';
+    RAISE NOTICE '🚀 Ready for Stripe integration!';
 END $$; 

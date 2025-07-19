@@ -73,6 +73,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 export const PLAN_LIMITS = {
   free: 10 * 1024 * 1024, // 10MB in bytes
   pro: 50 * 1024 * 1024,  // 50MB in bytes
+  enterprise: 1024 * 1024 * 1024, // 1GB in bytes - set manually per customer
 } as const;
 
 // Helper function to format file size
@@ -85,12 +86,12 @@ export const formatFileSize = (bytes: number): string => {
 };
 
 // Helper function to get user's storage limit
-export const getStorageLimit = (planType: 'free' | 'pro'): number => {
+export const getStorageLimit = (planType: 'free' | 'pro' | 'enterprise'): number => {
   return PLAN_LIMITS[planType];
 };
 
 // Helper function to check if user can upload file
-export const canUploadFile = (currentUsage: number, fileSize: number, planType: 'free' | 'pro'): boolean => {
+export const canUploadFile = (currentUsage: number, fileSize: number, planType: 'free' | 'pro' | 'enterprise'): boolean => {
   const limit = getStorageLimit(planType);
   return (currentUsage + fileSize) <= limit;
 }; 

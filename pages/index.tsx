@@ -76,12 +76,12 @@ export default function Home() {
               Store your files with confidence knowing they're distributed across a robust peer-to-peer network.
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">
-              <button
-                onClick={handleLogin}
+            <button
+              onClick={handleLogin}
                 className="px-6 py-3 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-semibold text-lg"
-              >
+            >
                 Start Storing Now
-              </button>
+            </button>
               <a
                 href="https://docs.thirdstorage.com"
                 target="_blank"
@@ -92,12 +92,12 @@ export default function Home() {
               </a>
             </div>
           </div>
-        </div>
-
+          </div>
+          
         {/* Feature Grid */}
         <div className="py-24 bg-zinc-900/50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center">
+          <div className="text-center">
               <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
                 Why Choose ThirdStorage?
               </h2>
@@ -271,10 +271,10 @@ export default function Home() {
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                   <span className="text-zinc-400 text-sm">All systems operational</span>
-                </div>
-              </div>
             </div>
           </div>
+        </div>
+      </div>
         </footer>
       </main>
     </div>

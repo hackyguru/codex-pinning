@@ -4,6 +4,9 @@ import { useEffect, useState, useRef } from 'react';
 import { UserStats } from '../lib/userService';
 import { FileWithFormatted } from '../lib/fileService';
 import Image from 'next/image';
+import { loadStripe } from '@stripe/stripe-js';
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 interface UploadedFile {
   id: string;
@@ -74,56 +77,150 @@ export default function Dashboard() {
     }
   });
 
-  // Dynamic billing and payment data
-  const [billingHistory, setBillingHistory] = useState<any[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  // Downgrade confirmation state
+  const [showDowngradeConfirm, setShowDowngradeConfirm] = useState(false);
+  const [downgradeStep, setDowngradeStep] = useState(1);
 
-  // Update billing history and payment methods based on plan type
-  useEffect(() => {
-    if (userStats?.planType === 'pro') {
-      setBillingHistory([
-        {
-          id: '1',
-          date: '2024-01-01',
-          amount: '$10.00',
-          status: 'paid',
-          plan: 'Pro Plan',
-          period: 'Jan 2024'
-        },
-        {
-          id: '2',
-          date: '2023-12-01',
-          amount: '$10.00',
-          status: 'paid',
-          plan: 'Pro Plan',
-          period: 'Dec 2023'
-        },
-        {
-          id: '3',
-          date: '2023-11-01',
-          amount: '$10.00',
-          status: 'paid',
-          plan: 'Pro Plan',
-          period: 'Nov 2023'
-        }
-      ]);
-      
-      setPaymentMethods([
-        {
-          id: '1',
-          type: 'card',
-          last4: '4242',
-          brand: 'Visa',
-          expiryMonth: 12,
-          expiryYear: 2027,
-          isDefault: true
-        }
-      ]);
-    } else {
-      setBillingHistory([]);
-      setPaymentMethods([]);
+  // Upgrade to Pro function
+  const handleUpgradeToPro = async () => {
+    const userEmail = getUserEmail();
+    
+    console.log('Upgrade attempt:', { 
+      userId: user?.id, 
+      userEmail,
+      linkedAccounts: user?.linkedAccounts,
+      authType: user?.linkedAccounts?.[0]?.type
+    });
+    
+    if (!user?.id || !userEmail) {
+      alert('Please ensure you are logged in');
+      return;
     }
-  }, [userStats?.planType]);
+
+    try {
+      // Get auth token from Privy
+      const authToken = await getAccessToken();
+      
+      const response = await fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+
+      const { sessionUrl, error } = await response.json();
+
+      if (error) {
+        alert(error);
+        return;
+      }
+
+      // Redirect to Stripe checkout
+      window.location.href = sessionUrl;
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      alert('Failed to start upgrade process. Please try again.');
+    }
+  };
+
+  // Downgrade to Free function
+  const handleDowngradeToFree = async () => {
+    if (!user?.id) {
+      alert('Please ensure you are logged in');
+      return;
+    }
+
+    try {
+      // Get auth token from Privy
+      const authToken = await getAccessToken();
+      
+      const response = await fetch('/api/stripe/cancel-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+
+      const { success, error } = await response.json();
+
+      if (error) {
+        alert(error);
+        return;
+      }
+
+      if (success) {
+        // Reload user data to reflect changes
+        loadUserData();
+        setShowDowngradeConfirm(false);
+        setDowngradeStep(1);
+        alert('Successfully downgraded to Free plan');
+      }
+    } catch (error) {
+      console.error('Error downgrading subscription:', error);
+      alert('Failed to downgrade. Please try again.');
+    }
+  };
+
+
+
+  // Start downgrade process
+  const initiateDowngrade = () => {
+    setShowDowngradeConfirm(true);
+    setDowngradeStep(1);
+  };
+
+  // Cancel downgrade
+  const cancelDowngrade = () => {
+    setShowDowngradeConfirm(false);
+    setDowngradeStep(1);
+  };
+
+  // Dynamic billing history data
+  const [billingHistory, setBillingHistory] = useState<any[]>([]);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState<string | null>(null);
+
+  // Load billing history from API
+  const loadBillingHistory = async () => {
+    if (!user?.id || userStats?.planType === 'free') {
+      setBillingHistory([]);
+      return;
+    }
+
+    setBillingLoading(true);
+    setBillingError(null);
+
+    try {
+      // Get auth token from Privy
+      const authToken = await getAccessToken();
+      
+      const response = await fetch('/api/billing/history', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch billing history');
+      }
+
+      const data = await response.json();
+      setBillingHistory(data.billingHistory || []);
+    } catch (error) {
+      console.error('Error loading billing history:', error);
+      setBillingError('Failed to load billing history');
+      setBillingHistory([]);
+    } finally {
+      setBillingLoading(false);
+    }
+  };
+
+  // Load billing history when user or plan changes
+  useEffect(() => {
+    loadBillingHistory();
+  }, [user?.id, userStats?.planType]);
 
   // Utility functions
   const getFileIcon = (contentType: string) => {
@@ -559,8 +656,14 @@ export default function Dashboard() {
     setGatewayTestResult(null);
 
     try {
-      // Test the public gateway - no authentication needed
-      const response = await fetch(`/api/gateway/${gatewayCid.trim()}`);
+      // Get auth token for secured gateway
+      const authToken = await getAccessToken();
+      
+      const response = await fetch(`/api/gateway/${gatewayCid.trim()}`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
       
       const contentType = response.headers.get('content-type') || 'unknown';
       const contentLength = response.headers.get('content-length') || 'unknown';
@@ -708,7 +811,7 @@ export default function Dashboard() {
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 flex items-center justify-center">
                   <Image src="/white.svg" alt="ThirdStorage" width={20} height={20} className="filter invert" />
-                </div>
+            </div>
                 <div className="flex items-center space-x-2">
                   <span className="text-zinc-400">/</span>
                   <span className="text-zinc-400">{getUserEmail()?.split('@')[0] || 'user'}</span>
@@ -728,7 +831,7 @@ export default function Dashboard() {
                     <svg className="h-4 w-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
-                  </div>
+              </div>
                   <input
                     ref={searchInputRef}
                     type="text"
@@ -758,17 +861,17 @@ export default function Dashboard() {
 
               {/* User Menu */}
               <div className="flex items-center space-x-3">
-                <button
-                  onClick={handleLogout}
+              <button
+                onClick={handleLogout}
                   className="p-2 text-zinc-400 hover:text-white transition-colors rounded-md hover:bg-zinc-800"
                   title="Sign out"
-                >
+              >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                   </svg>
-                </button>
-              </div>
+              </button>
             </div>
+          </div>
         </div>
       </header>
 
@@ -791,7 +894,7 @@ export default function Dashboard() {
                 )}
               </button>
             ))}
-        </div>
+      </div>
       </nav>
 
       {/* Main Content */}
@@ -801,7 +904,7 @@ export default function Dashboard() {
         {activeSection === 'overview' && (
           <div className="space-y-8">
             {/* Stats Cards */}
-            {userStats && (
+        {userStats && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Storage Usage */}
                 <div className="lg:col-span-2 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6 flex flex-col">
@@ -811,32 +914,32 @@ export default function Dashboard() {
                                               <p className="text-zinc-400 text-sm">Track your storage consumption</p>
                     </div>
                     <span className="px-3 py-1 text-xs font-medium rounded-full bg-zinc-800/80 backdrop-blur-sm text-zinc-300 border border-zinc-700/50">
-                      {userStats.planType.toUpperCase()}
-                    </span>
-                  </div>
-                  
+                  {userStats.planType.toUpperCase()}
+                </span>
+            </div>
+            
                   <div className="flex-1 flex flex-col justify-center space-y-6">
                     <div className="flex justify-between text-sm">
                       <span className="text-zinc-400">{formatFileSize(userStats.storageUsed)} used</span>
                       <span className="text-zinc-400">{formatFileSize(userStats.storageLimit)} total</span>
-                    </div>
+              </div>
                                           <div className="w-full bg-zinc-800/50 rounded-full h-3">
                       <div 
                         className={`h-3 rounded-full transition-all duration-500 ${
                           userStats.usagePercentage >= 90 ? 'bg-white/90' :
                           userStats.usagePercentage >= 75 ? 'bg-white/70' :
                           'bg-white/50'
-                        }`}
-                        style={{ width: `${userStats.usagePercentage}%` }}
-                      ></div>
+                  }`}
+                  style={{ width: `${userStats.usagePercentage}%` }}
+                ></div>
                     </div>
                                           <div className="flex justify-between text-sm text-zinc-400">
                       <span>{userStats.filesCount} files</span>
                       <span>{userStats.usagePercentage.toFixed(1)}% used</span>
                     </div>
-                  </div>
-                </div>
-
+              </div>
+            </div>
+            
                 {/* Quick Stats */}
                                   <div className="flex flex-col space-y-4 h-full">
                     <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6 flex-1 flex flex-col justify-center">
@@ -845,11 +948,11 @@ export default function Dashboard() {
                           <svg className="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
-                        </div>
+            </div>
                         <div>
                           <p className="text-sm text-zinc-400 mb-1">Total Files</p>
                         <p className="text-2xl font-semibold text-white">{allFiles.length}</p>
-                      </div>
+          </div>
                     </div>
                   </div>
                                     
@@ -858,14 +961,14 @@ export default function Dashboard() {
                         <div className="w-12 h-12 bg-zinc-800/80 backdrop-blur-sm rounded-lg flex items-center justify-center mr-4">
                           <svg className="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 12H9v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4c0-7.2 5.3-13.2 12.5-12.5A6 6 0 0115 7z" />
-                          </svg>
-                        </div>
+                </svg>
+              </div>
                         <div>
                           <p className="text-sm text-zinc-400 mb-1">Pinning Secrets</p>
                         <p className="text-2xl font-semibold text-white">{pinningSecrets.length}</p>
-                      </div>
-                    </div>
-                  </div>
+                </div>
+              </div>
+            </div>
                 </div>
               </div>
             )}
@@ -882,7 +985,7 @@ export default function Dashboard() {
                     <span className={`text-sm ${uploadMode === 'drag-drop' ? 'text-white' : 'text-zinc-400'}`}>
                       Drag & Drop
                     </span>
-                    <button
+              <button
                       onClick={() => setUploadMode(uploadMode === 'drag-drop' ? 'api' : 'drag-drop')}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                         uploadMode === 'api' ? 'bg-white' : 'bg-zinc-700'
@@ -893,64 +996,64 @@ export default function Dashboard() {
                           uploadMode === 'api' ? 'translate-x-6' : 'translate-x-1'
                         }`}
                       />
-                    </button>
+              </button>
                     <span className={`text-sm ${uploadMode === 'api' ? 'text-white' : 'text-zinc-400'}`}>
                       Using API
                     </span>
-                  </div>
-                </div>
+          </div>
+        </div>
 
                 {uploadMode === 'drag-drop' ? (
-                  <div
+          <div
                     className={`flex-1 border-2 border-dashed rounded-lg p-6 text-center transition-colors backdrop-blur-sm flex flex-col justify-center ${
-                      isDragOver
+              isDragOver
                         ? 'border-white/50 bg-zinc-800/50'
-                        : isUploading
+                : isUploading
                         ? 'border-zinc-500 bg-zinc-800/30'
                         : 'border-zinc-700 hover:border-zinc-600 bg-zinc-900/30'
-                    }`}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                  >
-                    <div className="space-y-4">
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <div className="space-y-4">
                       <div className="mx-auto w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center">
-                        {isUploading ? (
+                {isUploading ? (
                                                   <div className="animate-spin rounded-full h-6 w-6 border-2 border-zinc-600 border-t-white"></div>
-                        ) : (
+                ) : (
                                                   <svg className="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                          </svg>
-                        )}
-                      </div>
-                      <div>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                )}
+              </div>
+              <div>
                         <p className="text-lg font-medium text-white">
                           {isUploading ? 'Uploading...' : 'Drop files here or click to upload'}
-                        </p>
+                </p>
                         <p className="text-zinc-400">Support for any file type up to 100MB</p>
-                      </div>
-                      <div>
-                        <input
-                          type="file"
-                          multiple
-                          onChange={handleFileSelect}
-                          className="hidden"
-                          id="file-upload"
-                          disabled={isUploading}
-                        />
-                        <label
-                          htmlFor="file-upload"
+              </div>
+              <div>
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  id="file-upload"
+                  disabled={isUploading}
+                />
+                <label
+                  htmlFor="file-upload"
                           className={`inline-flex items-center px-4 py-2 rounded-md font-medium text-sm transition-colors cursor-pointer ${
-                            isUploading
+                    isUploading
                               ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
                               : 'bg-white text-black hover:bg-zinc-100'
-                          }`}
-                        >
-                          {isUploading ? 'Uploading...' : 'Choose Files'}
-                        </label>
-                      </div>
-                    </div>
-                  </div>
+                  }`}
+                >
+                  {isUploading ? 'Uploading...' : 'Choose Files'}
+                </label>
+              </div>
+            </div>
+          </div>
                                 ) : (
                   <div className="flex-1 flex flex-col">
                     {/* Language Tabs */}
@@ -961,7 +1064,7 @@ export default function Dashboard() {
                         { id: 'python', label: 'Python' },
                         { id: 'node', label: 'Node.js' }
                       ].map((tab) => (
-                        <button
+              <button
                           key={tab.id}
                           onClick={() => setSelectedCodeExample(tab.id as any)}
                           className={`flex-1 px-3 py-2 text-xs font-medium rounded-md transition-colors ${
@@ -971,7 +1074,7 @@ export default function Dashboard() {
                           }`}
                         >
                           {tab.label}
-                        </button>
+              </button>
                       ))}
                     </div>
 
@@ -984,7 +1087,7 @@ export default function Dashboard() {
                           {selectedCodeExample === 'python' && 'Upload with Python'}
                           {selectedCodeExample === 'node' && 'Upload with Node.js'}
                         </h3>
-                        <button
+              <button
                           onClick={() => {
                             const codeSnippets = {
                               curl: `curl -X POST "${window.location.origin}/api/upload" \\
@@ -1030,9 +1133,9 @@ fetch('${window.location.origin}/api/upload', {
                           className="text-xs text-zinc-400 hover:text-white transition-colors"
                         >
                           Copy
-                        </button>
-                      </div>
-                      
+              </button>
+          </div>
+
                       <div className="flex-1 p-3 font-mono text-xs text-zinc-300 overflow-hidden">
                         {selectedCodeExample === 'curl' && (
                           <div className="space-y-1">
@@ -1057,7 +1160,7 @@ fetch('${window.location.origin}/api/upload', {
                             <div><span className="text-zinc-400">{'}'}</span><span className="text-zinc-400">)</span></div>
                             <div><span className="text-zinc-400">.</span><span className="text-yellow-400">then</span><span className="text-zinc-400">(</span><span className="text-white">response</span> <span className="text-zinc-400">{'=>'}</span> <span className="text-white">response</span><span className="text-zinc-400">.</span><span className="text-yellow-400">json</span><span className="text-zinc-400">())</span></div>
                             <div><span className="text-zinc-400">.</span><span className="text-yellow-400">then</span><span className="text-zinc-400">(</span><span className="text-white">data</span> <span className="text-zinc-400">{'=>'}</span> <span className="text-white">console</span><span className="text-zinc-400">.</span><span className="text-yellow-400">log</span><span className="text-zinc-400">(</span><span className="text-white">data</span><span className="text-zinc-400">));</span></div>
-                          </div>
+                      </div>
                         )}
                         
                         {selectedCodeExample === 'python' && (
@@ -1070,7 +1173,7 @@ fetch('${window.location.origin}/api/upload', {
                             <div className="mt-2"></div>
                             <div><span className="text-white">response</span> <span className="text-zinc-400">=</span> <span className="text-white">requests</span><span className="text-zinc-400">.</span><span className="text-yellow-400">post</span><span className="text-zinc-400">(</span><span className="text-white">url</span><span className="text-zinc-400">,</span> <span className="text-white">headers</span><span className="text-zinc-400">=</span><span className="text-white">headers</span><span className="text-zinc-400">,</span> <span className="text-white">files</span><span className="text-zinc-400">=</span><span className="text-white">files</span><span className="text-zinc-400">)</span></div>
                             <div><span className="text-yellow-400">print</span><span className="text-zinc-400">(</span><span className="text-white">response</span><span className="text-zinc-400">.</span><span className="text-yellow-400">json</span><span className="text-zinc-400">())</span></div>
-                          </div>
+                    </div>
                         )}
                         
                         {selectedCodeExample === 'node' && (
@@ -1115,12 +1218,12 @@ fetch('${window.location.origin}/api/upload', {
                       <div key={file.id} className="flex items-center justify-between py-2">
                         <div className="flex items-center space-x-3">
                           <span className="text-lg">{getFileIcon(file.type)}</span>
-                          <div>
+                    <div>
                             <p className="font-medium text-white text-sm">{file.name}</p>
                             <p className="text-zinc-400 text-xs">{file.size}</p>
-                          </div>
-                        </div>
-                                              <div className="flex items-center space-x-2">
+                    </div>
+                  </div>
+                      <div className="flex items-center space-x-2">
                         <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm ${
                           file.status === 'uploaded' 
                             ? 'bg-zinc-800/80 text-zinc-300 border border-zinc-700/50' 
@@ -1132,7 +1235,7 @@ fetch('${window.location.origin}/api/upload', {
                            file.status === 'uploading' ? 'Uploading' : 'Error'}
                         </span>
                       </div>
-                      </div>
+                    </div>
                     ))}
                   </div>
                 </div>
@@ -1163,7 +1266,7 @@ fetch('${window.location.origin}/api/upload', {
               </div>
               <div className="flex items-center space-x-3">
                                   <div className="flex bg-zinc-800 rounded-lg p-1">
-                  <button
+                      <button
                     onClick={() => setViewMode('grid')}
                                           className={`p-2 rounded transition-colors ${
                         viewMode === 'grid'
@@ -1173,9 +1276,9 @@ fetch('${window.location.origin}/api/upload', {
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                    </svg>
-                  </button>
-                  <button
+                        </svg>
+                      </button>
+                      <button
                     onClick={() => setViewMode('list')}
                                           className={`p-2 rounded transition-colors ${
                         viewMode === 'list'
@@ -1185,8 +1288,8 @@ fetch('${window.location.origin}/api/upload', {
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                    </svg>
-                  </button>
+                        </svg>
+                      </button>
                 </div>
               </div>
             </div>
@@ -1200,7 +1303,7 @@ fetch('${window.location.origin}/api/upload', {
                 </div>
                 <h3 className="text-lg font-medium text-white mb-2">No files yet</h3>
                 <p className="text-zinc-400 mb-6">Upload your first file to get started</p>
-                <button
+                        <button
                   onClick={() => setActiveSection('overview')}
                   className="inline-flex items-center px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors"
                 >
@@ -1222,13 +1325,13 @@ fetch('${window.location.origin}/api/upload', {
                       {file.status === 'uploaded' && (
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
-                            onClick={() => handleDeleteFile(file.originalId || file.id)}
+                          onClick={() => handleDeleteFile(file.originalId || file.id)}
                             className="p-1 text-zinc-400 hover:text-red-400 transition-colors"
-                          >
+                        >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
                         </div>
                       )}
                     </div>
@@ -1291,7 +1394,7 @@ fetch('${window.location.origin}/api/upload', {
                           </span>
                           {file.status === 'uploaded' && (
                             <div className="flex items-center space-x-1">
-                              <button
+                        <button
                                 onClick={() => handleViewContent(file.cid)}
                                 className="p-1 text-zinc-400 hover:text-white transition-colors"
                                 title="View content"
@@ -1306,14 +1409,14 @@ fetch('${window.location.origin}/api/upload', {
                                 title="Delete"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              </button>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
                             </div>
-                          )}
-                        </div>
-                      </div>
+                      )}
                     </div>
+                  </div>
+                </div>
                   ))}
                 </div>
               </div>
@@ -1471,9 +1574,9 @@ fetch('${window.location.origin}/api/upload', {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                         </svg>
                       </button>
-                    </div>
-                  </div>
-                ))}
+                </div>
+              </div>
+            ))}
               </div>
             </div>
 
@@ -1618,27 +1721,27 @@ fetch('${window.location.origin}/api/upload', {
                          </div>
 
             </div>
-          </div>
-        )}
+            </div>
+          )}
 
         {/* API Secrets Section */}
         {activeSection === 'secrets' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-white">Pinning Secrets</h1>
                 <p className="text-zinc-400">Manage your pinning secrets for programmatic access</p>
               </div>
-              <button
+                  <button
                 onClick={() => setShowCreateSecretModal(true)}
                 className="inline-flex items-center px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm"
-              >
+                  >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
                 New Secret
-              </button>
-            </div>
+                  </button>
+              </div>
 
             {/* Create Secret Modal */}
             {showCreateSecretModal && (
@@ -1657,45 +1760,45 @@ fetch('${window.location.origin}/api/upload', {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-zinc-300 mb-2">Secret Name</label>
-                      <input
-                        type="text"
+                    <input
+                      type="text"
                         placeholder="e.g., 'Production API'"
-                        value={newSecretName}
-                        onChange={(e) => setNewSecretName(e.target.value)}
+                      value={newSecretName}
+                      onChange={(e) => setNewSecretName(e.target.value)}
                         className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-600"
                         autoFocus
-                      />
+                    />
                     </div>
                     <div className="flex space-x-3">
-                      <button
-                        onClick={createPinningSecret}
+                    <button
+                      onClick={createPinningSecret}
                         className="flex-1 px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm"
-                      >
+                    >
                         Create Secret
-                      </button>
-                      <button
-                        onClick={() => {
+                    </button>
+                    <button
+                      onClick={() => {
                           setShowCreateSecretModal(false);
-                          setNewSecretName('');
-                        }}
+                        setNewSecretName('');
+                      }}
                         className="flex-1 px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors font-medium text-sm"
-                      >
-                        Cancel
-                      </button>
+                    >
+                      Cancel
+                    </button>
                     </div>
                   </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Created Secret Display */}
-            {createdSecret && (
+              {/* Created Secret Display */}
+              {createdSecret && (
               <div className="bg-zinc-900/80 backdrop-blur-sm border border-zinc-700/50 rounded-lg p-6">
                 <h3 className="text-lg font-semibold text-white mb-3">Secret Created Successfully</h3>
                 <p className="text-zinc-300 mb-4">Copy this secret now. It won't be shown again.</p>
                 <div className="bg-zinc-800/80 backdrop-blur-sm border border-zinc-700/50 rounded-md p-3 font-mono text-sm text-zinc-100 mb-4 break-all">
-                  {createdSecret}
-                </div>
+                    {createdSecret}
+                  </div>
                 <div className="flex space-x-3">
                   <button
                     onClick={() => {
@@ -1713,17 +1816,17 @@ fetch('${window.location.origin}/api/upload', {
                     Close
                   </button>
                 </div>
-              </div>
-            )}
+                </div>
+              )}
 
             {/* Secrets List */}
-            {pinningSecrets.length === 0 ? (
+                {pinningSecrets.length === 0 ? (
               <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-12 text-center">
                 <div className="mx-auto w-16 h-16 bg-zinc-800 rounded-lg flex items-center justify-center mb-4">
                   <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 12H9v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4c0-7.2 5.3-13.2 12.5-12.5A6 6 0 0115 7z" />
                   </svg>
-                </div>
+                          </div>
                 <h3 className="text-lg font-medium text-white mb-2">No pinning secrets yet</h3>
                 <p className="text-zinc-400 mb-6">Create your first secret to start using the API</p>
                 <button
@@ -1732,7 +1835,7 @@ fetch('${window.location.origin}/api/upload', {
                 >
                   Create Secret
                 </button>
-              </div>
+                        </div>
             ) : (
               <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg overflow-hidden">
                 <div className="divide-y divide-zinc-800">
@@ -1743,12 +1846,12 @@ fetch('${window.location.origin}/api/upload', {
                           <div className="flex items-center space-x-3 mb-2">
                             <h4 className="font-semibold text-white">{secret.name}</h4>
                             <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm ${
-                              secret.isActive 
+                            secret.isActive 
                                 ? 'bg-zinc-800/80 text-zinc-300 border border-zinc-700/50' 
                                 : 'bg-zinc-900/80 text-zinc-400 border border-zinc-800/50'
-                            }`}>
-                              {secret.isActive ? 'Active' : 'Revoked'}
-                            </span>
+                          }`}>
+                            {secret.isActive ? 'Active' : 'Revoked'}
+                          </span>
                           </div>
                           <p className="text-zinc-400 font-mono text-sm mb-3">
                             {secret.prefix}••••••••••••••••••••••••••••••••••••••••••••••
@@ -1783,8 +1886,8 @@ fetch('${window.location.origin}/api/upload', {
                   ))}
                 </div>
               </div>
-            )}
-          </div>
+                )}
+              </div>
         )}
 
         {/* Gateway Section */}
@@ -1878,9 +1981,9 @@ fetch('${window.location.origin}/api/upload', {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                       </svg>
                     </a>
-                  )}
-                </div>
-              </div>
+          )}
+        </div>
+      </div>
             </div>
 
             {/* Test Results */}
@@ -2109,9 +2212,11 @@ fetch('${window.location.origin}/api/upload', {
                   <span className={`px-3 py-1 text-sm font-medium rounded-full ${
                     userStats?.planType === 'pro' 
                       ? 'bg-white/10 text-white border border-white/20' 
+                      : userStats?.planType === 'enterprise'
+                      ? 'bg-purple-900/20 text-purple-300 border border-purple-500/30'
                       : 'bg-zinc-800 text-zinc-300 border border-zinc-700'
                   }`}>
-                    {userStats?.planType === 'pro' ? 'Pro Plan' : 'Free Plan'}
+                    {userStats?.planType === 'pro' ? 'Pro Plan' : userStats?.planType === 'enterprise' ? 'Enterprise Plan' : 'Free Plan'}
                   </span>
                 </div>
 
@@ -2126,7 +2231,7 @@ fetch('${window.location.origin}/api/upload', {
                         <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
-                        100 GB storage included
+                        50 MB storage included
                       </div>
                       <div className="flex items-center text-zinc-300">
                         <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2151,6 +2256,42 @@ fetch('${window.location.origin}/api/upload', {
                       Downgrade to Free
                     </button>
                   </div>
+                ) : userStats?.planType === 'enterprise' ? (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-3xl font-bold text-white">Custom<span className="text-lg text-zinc-400"> pricing</span></p>
+                      <p className="text-zinc-400 mt-1">Enterprise Plan • Manual billing</p>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center text-zinc-300">
+                        <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        {userStats ? formatFileSize(userStats.storageLimit) : 'Custom'} storage included
+                      </div>
+                      <div className="flex items-center text-zinc-300">
+                        <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Unlimited private egress
+                      </div>
+                      <div className="flex items-center text-zinc-300">
+                        <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Dedicated support
+                      </div>
+                      <div className="flex items-center text-zinc-300">
+                        <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Custom integrations
+                      </div>
+                    </div>
+                    <button className="w-full mt-6 px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors font-medium text-sm">
+                      Contact Support
+                    </button>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     <div>
@@ -2162,7 +2303,7 @@ fetch('${window.location.origin}/api/upload', {
                         <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
-                        1 GB storage included
+                        10 MB storage included
                       </div>
                       <div className="flex items-center text-zinc-300">
                         <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2183,7 +2324,10 @@ fetch('${window.location.origin}/api/upload', {
                         Basic replication only
                       </div>
                     </div>
-                    <button className="w-full mt-6 px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm">
+                    <button 
+                      onClick={handleUpgradeToPro}
+                      className="w-full mt-6 px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm"
+                    >
                       Upgrade to Pro
                     </button>
                   </div>
@@ -2237,41 +2381,99 @@ fetch('${window.location.origin}/api/upload', {
             <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-white">Billing History</h2>
-                <button className="text-sm text-zinc-400 hover:text-white transition-colors">
-                  Download all invoices
+                <button 
+                  onClick={() => {
+                    // Open all invoice URLs in new tabs
+                    const downloadableInvoices = billingHistory.filter(bill => bill.invoice_url || bill.invoice_pdf);
+                    if (downloadableInvoices.length === 0) {
+                      alert('No invoices available for download');
+                      return;
+                    }
+                    downloadableInvoices.forEach(bill => {
+                      window.open(bill.invoice_url || bill.invoice_pdf, '_blank');
+                    });
+                  }}
+                  disabled={billingHistory.filter(bill => bill.invoice_url || bill.invoice_pdf).length === 0}
+                  className="text-sm text-zinc-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Download all invoices ({billingHistory.filter(bill => bill.invoice_url || bill.invoice_pdf).length})
                 </button>
               </div>
 
               {userStats?.planType === 'pro' ? (
                 <div className="space-y-3">
-                  {billingHistory.map((bill) => (
-                    <div key={bill.id} className="flex items-center justify-between p-4 bg-zinc-800/30 backdrop-blur-sm border border-zinc-700/30 rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-10 h-10 bg-zinc-800/80 backdrop-blur-sm rounded-lg flex items-center justify-center">
-                          <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-white text-sm">{bill.plan}</h4>
-                          <p className="text-xs text-zinc-400">{bill.period}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="text-right">
-                          <p className="text-sm text-white font-medium">{bill.amount}</p>
-                          <p className={`text-xs ${bill.status === 'paid' ? 'text-green-400' : 'text-yellow-400'}`}>
-                            {bill.status.charAt(0).toUpperCase() + bill.status.slice(1)}
-                          </p>
-                        </div>
-                        <button className="p-1 text-zinc-400 hover:text-white transition-colors">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                        </button>
-                      </div>
+                  {billingLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+                      <p className="text-zinc-400">Loading billing history...</p>
                     </div>
-                  ))}
+                  ) : billingError ? (
+                    <div className="text-center py-8">
+                      <div className="mx-auto w-12 h-12 bg-red-900/20 border border-red-800 rounded-lg flex items-center justify-center mb-4">
+                        <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-medium text-white mb-2">Error Loading Billing History</h3>
+                      <p className="text-zinc-400 mb-4">{billingError}</p>
+                      <button 
+                        onClick={loadBillingHistory}
+                        className="px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm"
+                      >
+                        Try Again
+                      </button>
+                    </div>
+                  ) : billingHistory.length > 0 ? (
+                    billingHistory.map((bill) => (
+                      <div key={bill.id} className="flex items-center justify-between p-4 bg-zinc-800/30 backdrop-blur-sm border border-zinc-700/30 rounded-lg">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-10 h-10 bg-zinc-800/80 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                            <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-white text-sm">{bill.plan}</h4>
+                            <p className="text-xs text-zinc-400">{bill.period}</p>
+                            <p className="text-xs text-zinc-500">{bill.date}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <div className="text-right">
+                            <p className="text-sm text-white font-medium">{bill.amount}</p>
+                            <p className={`text-xs ${
+                              bill.status === 'paid' ? 'text-green-400' : 
+                              bill.status === 'pending' ? 'text-yellow-400' : 
+                              bill.status === 'failed' ? 'text-red-400' : 'text-zinc-400'
+                            }`}>
+                              {bill.status.charAt(0).toUpperCase() + bill.status.slice(1)}
+                            </p>
+                          </div>
+                          {(bill.invoice_url || bill.invoice_pdf) && (
+                            <button 
+                              onClick={() => window.open(bill.invoice_url || bill.invoice_pdf, '_blank')}
+                              className="p-1 text-zinc-400 hover:text-white transition-colors"
+                              title="Download Invoice"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="mx-auto w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center mb-4">
+                        <svg className="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-medium text-white mb-2">No billing history yet</h3>
+                      <p className="text-zinc-400">Your billing history will appear here after your first payment.</p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-12">
@@ -2289,63 +2491,16 @@ fetch('${window.location.origin}/api/upload', {
               )}
             </div>
 
-            {/* Payment Method */}
-            {userStats?.planType === 'pro' && (
-              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-white">Payment Method</h2>
-                  <button className="px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors font-medium text-sm">
-                    {paymentMethods.length > 0 ? 'Update Payment Method' : 'Add Payment Method'}
-                  </button>
-                </div>
 
-                {paymentMethods.length > 0 ? (
-                  <div className="space-y-3">
-                    {paymentMethods.map((method) => (
-                      <div key={method.id} className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className={`w-12 h-8 rounded flex items-center justify-center ${
-                            method.brand.toLowerCase() === 'visa' 
-                              ? 'bg-gradient-to-r from-blue-600 to-purple-600'
-                              : method.brand.toLowerCase() === 'mastercard'
-                              ? 'bg-gradient-to-r from-red-600 to-orange-600'
-                              : 'bg-gradient-to-r from-gray-600 to-zinc-600'
-                          }`}>
-                            <span className="text-white text-xs font-bold">{method.brand.toUpperCase()}</span>
-                          </div>
-                          <div>
-                            <p className="text-white font-medium">•••• •••• •••• {method.last4}</p>
-                            <p className="text-zinc-400 text-sm">
-                              Expires {method.expiryMonth.toString().padStart(2, '0')}/{method.expiryYear}
-                              {method.isDefault && <span className="ml-2 text-xs bg-zinc-700 text-zinc-300 px-2 py-1 rounded">Default</span>}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="mx-auto w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center mb-4">
-                      <svg className="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-sm font-medium text-white mb-2">No payment method</h3>
-                    <p className="text-zinc-400 text-xs">Add a payment method to manage your subscription</p>
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Plan Comparison */}
             <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
               <h2 className="text-xl font-semibold text-white mb-6">Plan Comparison</h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Free Plan */}
                 <div className={`p-6 rounded-lg border-2 transition-all ${
-                  userStats?.planType !== 'pro' 
+                  userStats?.planType === 'free' 
                     ? 'border-white/30 bg-white/5' 
                     : 'border-zinc-700/50 bg-zinc-800/30'
                 }`}>
@@ -2358,7 +2513,7 @@ fetch('${window.location.origin}/api/upload', {
                       <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      1 GB storage
+                      10 MB storage
                     </div>
                     <div className="flex items-center text-zinc-300">
                       <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2366,7 +2521,6 @@ fetch('${window.location.origin}/api/upload', {
                       </svg>
                       1K private egress/month
                     </div>
-
                     <div className="flex items-center text-zinc-300">
                       <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -2374,14 +2528,17 @@ fetch('${window.location.origin}/api/upload', {
                       Community support
                     </div>
                   </div>
-                  {userStats?.planType !== 'pro' ? (
+                  {userStats?.planType === 'free' ? (
                     <div className="text-center">
                       <span className="px-4 py-2 bg-zinc-700 text-zinc-300 rounded-md font-medium text-sm">
                         Current Plan
                       </span>
                     </div>
                   ) : (
-                    <button className="w-full px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors font-medium text-sm">
+                    <button 
+                      onClick={initiateDowngrade}
+                      className="w-full px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors font-medium text-sm"
+                    >
                       Downgrade to Free
                     </button>
                   )}
@@ -2402,7 +2559,7 @@ fetch('${window.location.origin}/api/upload', {
                       <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      100 GB storage
+                      50 MB storage
                     </div>
                     <div className="flex items-center text-zinc-300">
                       <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2410,7 +2567,6 @@ fetch('${window.location.origin}/api/upload', {
                       </svg>
                       Unlimited private egress
                     </div>
-
                     <div className="flex items-center text-zinc-300">
                       <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -2425,14 +2581,80 @@ fetch('${window.location.origin}/api/upload', {
                     </div>
                   </div>
                   {userStats?.planType === 'pro' ? (
+                    <div className="space-y-2">
+                      <div className="text-center">
+                        <span className="px-4 py-2 bg-white/10 text-white rounded-md font-medium text-sm">
+                          Current Plan
+                        </span>
+                      </div>
+                      <button 
+                        onClick={initiateDowngrade}
+                        className="w-full px-4 py-2 bg-red-600/80 text-white border border-red-500/50 rounded-md hover:bg-red-600 transition-colors font-medium text-sm"
+                      >
+                        Downgrade to Free
+                      </button>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={handleUpgradeToPro}
+                      className="w-full px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm"
+                    >
+                      Upgrade to Pro
+                    </button>
+                  )}
+                </div>
+
+                {/* Enterprise Plan */}
+                <div className={`p-6 rounded-lg border-2 transition-all ${
+                  userStats?.planType === 'enterprise' 
+                    ? 'border-white/30 bg-white/5' 
+                    : 'border-zinc-700/50 bg-zinc-800/30'
+                }`}>
+                  <div className="text-center mb-6">
+                    <h3 className="text-lg font-semibold text-white">Enterprise Plan</h3>
+                    <p className="text-3xl font-bold text-white mt-2">Custom<span className="text-lg text-zinc-400"> pricing</span></p>
+                  </div>
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center text-zinc-300">
+                      <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Custom storage limit
+                    </div>
+                    <div className="flex items-center text-zinc-300">
+                      <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Unlimited private egress
+                    </div>
+                    <div className="flex items-center text-zinc-300">
+                      <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Dedicated support
+                    </div>
+                    <div className="flex items-center text-zinc-300">
+                      <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      SLA guarantees
+                    </div>
+                    <div className="flex items-center text-zinc-300">
+                      <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Custom integrations
+                    </div>
+                  </div>
+                  {userStats?.planType === 'enterprise' ? (
                     <div className="text-center">
                       <span className="px-4 py-2 bg-white/10 text-white rounded-md font-medium text-sm">
                         Current Plan
                       </span>
                     </div>
                   ) : (
-                    <button className="w-full px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm">
-                      Upgrade to Pro
+                    <button className="w-full px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors font-medium text-sm">
+                      Contact Sales
                     </button>
                   )}
                 </div>
@@ -2509,6 +2731,94 @@ fetch('${window.location.origin}/api/upload', {
           </div>
         )}
       </main>
+
+      {/* Downgrade Confirmation Popup */}
+      {showDowngradeConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-6 max-w-md w-full">
+            {downgradeStep === 1 ? (
+              <>
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-red-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-semibold text-white mb-2">Downgrade to Free Plan?</h3>
+                  <p className="text-zinc-400">
+                    You'll lose access to Pro features including:
+                  </p>
+                </div>
+                
+                <div className="space-y-2 mb-6">
+                  <div className="flex items-center text-zinc-300">
+                    <svg className="w-4 h-4 mr-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    50 MB storage (reduced to 10 MB)
+                  </div>
+                  <div className="flex items-center text-zinc-300">
+                    <svg className="w-4 h-4 mr-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Priority support
+                  </div>
+                  <div className="flex items-center text-zinc-300">
+                    <svg className="w-4 h-4 mr-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Advanced replication
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={cancelDowngrade}
+                    className="flex-1 px-4 py-2 bg-zinc-800 text-zinc-300 rounded-md hover:bg-zinc-700 transition-colors"
+                  >
+                    Keep Pro Plan
+                  </button>
+                  <button
+                    onClick={() => setDowngradeStep(2)}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-red-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-semibold text-white mb-2">Final Confirmation</h3>
+                  <p className="text-zinc-400">
+                    Are you absolutely sure you want to downgrade to the Free plan? This action will take effect immediately.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setDowngradeStep(1)}
+                    className="flex-1 px-4 py-2 bg-zinc-800 text-zinc-300 rounded-md hover:bg-zinc-700 transition-colors"
+                  >
+                    Go Back
+                  </button>
+                  <button
+                    onClick={handleDowngradeToFree}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                  >
+                    Yes, Downgrade Now
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

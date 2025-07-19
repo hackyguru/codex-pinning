@@ -5,7 +5,11 @@ import type { AppProps } from "next/app";
 import { PrivyProvider } from '@privy-io/react-auth';
 
 export default function App({ Component, pageProps }: AppProps) {
-  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID || "cmd541qbd03idl20m9fupm1pz";
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+
+  if (!appId) {
+    throw new Error('NEXT_PUBLIC_PRIVY_APP_ID environment variable is required');
+  }
   
   return (
     <PrivyProvider

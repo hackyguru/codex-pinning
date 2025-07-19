@@ -11,11 +11,13 @@
   "dependencies": {
     "@privy-io/react-auth": "^2.18.1",
     "@privy-io/server-auth": "^1.28.4",
+    "@stripe/stripe-js": "^7.5.0",
     "@supabase/supabase-js": "^2.51.0",
     "formidable": "^3.5.4",
     "next": "15.4.1",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "stripe": "^18.3.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

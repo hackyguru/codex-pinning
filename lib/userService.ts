@@ -8,7 +8,7 @@ export type UserUpdate = Database['public']['Tables']['users']['Update'];
 export interface UserStats {
   storageUsed: number;
   storageLimit: number;
-  planType: 'free' | 'pro';
+  planType: 'free' | 'pro' | 'enterprise';
   email: string;
   filesCount: number;
   usagePercentage: number;
@@ -16,12 +16,49 @@ export interface UserStats {
 
 export class UserService {
   /**
+   * Get user's current plan from subscriptions table (source of truth)
+   * Falls back to users.plan_type for backward compatibility
+   */
+  static async getUserPlan(userId: string): Promise<'free' | 'pro' | 'enterprise'> {
+    try {
+      // First, check for active subscription
+      const { data: subscription, error: subError } = await supabaseServer
+        .from('subscriptions')
+        .select('plan_type')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .single();
+
+      if (!subError && subscription) {
+        return subscription.plan_type as 'free' | 'pro' | 'enterprise';
+      }
+
+      // Fallback to users table for backward compatibility
+      const { data: user, error: userError } = await supabaseServer
+        .from('users')
+        .select('plan_type')
+        .eq('id', userId)
+        .single();
+
+      if (!userError && user) {
+        return user.plan_type as 'free' | 'pro' | 'enterprise';
+      }
+
+      // Default to free if no data found
+      return 'free';
+    } catch (error) {
+      console.error('Error getting user plan:', error);
+      return 'free';
+    }
+  }
+
+  /**
    * Create or update user profile when they authenticate
    */
   static async upsertUserProfile(
     userId: string,
     email: string,
-    planType: 'free' | 'pro' = 'free'
+    planType: 'free' | 'pro' | 'enterprise' = 'free'
   ): Promise<UserRecord | null> {
     try {
       // First, try to get existing user
@@ -189,10 +226,10 @@ export class UserService {
    */
   static async getUserStats(userId: string): Promise<UserStats | null> {
     try {
-      // Get user data
+      // Get user data (no longer fetch plan_type from here)
       const { data: userData, error: userError } = await supabaseServer
         .from('users')
-        .select('storage_used, plan_type, email')
+        .select('storage_used, email')
         .eq('id', userId)
         .maybeSingle();
 
@@ -204,6 +241,9 @@ export class UserService {
       if (!userData) {
         return null;
       }
+
+      // Get plan type from subscriptions (source of truth)
+      const planType = await UserService.getUserPlan(userId);
 
       // Get files count
       const { count: filesCount, error: filesError } = await supabaseServer
@@ -217,13 +257,13 @@ export class UserService {
       }
 
       // Calculate storage limit and usage percentage
-      const storageLimit = getStorageLimit(userData.plan_type);
+      const storageLimit = getStorageLimit(planType);
       const usagePercentage = (userData.storage_used / storageLimit) * 100;
 
       return {
         storageUsed: userData.storage_used,
         storageLimit,
-        planType: userData.plan_type,
+        planType: planType,
         email: userData.email,
         filesCount: filesCount || 0,
         usagePercentage: Math.min(usagePercentage, 100)

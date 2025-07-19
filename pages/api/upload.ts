@@ -119,10 +119,14 @@ const uploadHandler = withAuth(async (req, res) => {
     });
   }
 
-  // Use demo-node-1 Codex API credentials (same as gateway and storage service)
-  const codexApiUrl = 'https://api.demo.codex.storage/fileshareapp/api/codex/v1';
-  const codexUsername = 'codex';
-  const codexPassword = 'iOpcciMDt2xCJnPrlJ86AaBOrbTzFH';
+  // Get Codex API credentials from environment variables
+  const codexApiUrl = process.env.CODEX_API_URL || 'https://api.demo.codex.storage/fileshareapp/api/codex/v1';
+  const codexUsername = process.env.CODEX_USERNAME || 'codex';
+  const codexPassword = process.env.CODEX_PASSWORD;
+
+  if (!codexPassword) {
+    return res.status(500).json({ error: 'Storage service configuration missing' });
+  }
 
   let uploadedFile: File | undefined = undefined;
 
