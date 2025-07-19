@@ -43,7 +43,7 @@ export default function Dashboard() {
   const [showCreateSecretModal, setShowCreateSecretModal] = useState(false);
   const [newSecretName, setNewSecretName] = useState('');
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<'overview' | 'files' | 'replication' | 'secrets' | 'gateway' | 'migrations' | 'settings'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'files' | 'replication' | 'secrets' | 'gateway' | 'migrations' | 'payments' | 'settings'>('overview');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -65,6 +65,65 @@ export default function Dashboard() {
   const [selectedNetwork, setSelectedNetwork] = useState<'ipfs' | 'arweave' | 'storj'>('ipfs');
   const [migrationCid, setMigrationCid] = useState('');
   const [isMigrating, setIsMigrating] = useState(false);
+
+  // Usage tracking state - simplified since we're not tracking usage yet
+  const [monthlyUsage, setMonthlyUsage] = useState({
+    privateEgress: {
+      used: 0,
+      limit: 1000,
+    }
+  });
+
+  // Dynamic billing and payment data
+  const [billingHistory, setBillingHistory] = useState<any[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+
+  // Update billing history and payment methods based on plan type
+  useEffect(() => {
+    if (userStats?.planType === 'pro') {
+      setBillingHistory([
+        {
+          id: '1',
+          date: '2024-01-01',
+          amount: '$10.00',
+          status: 'paid',
+          plan: 'Pro Plan',
+          period: 'Jan 2024'
+        },
+        {
+          id: '2',
+          date: '2023-12-01',
+          amount: '$10.00',
+          status: 'paid',
+          plan: 'Pro Plan',
+          period: 'Dec 2023'
+        },
+        {
+          id: '3',
+          date: '2023-11-01',
+          amount: '$10.00',
+          status: 'paid',
+          plan: 'Pro Plan',
+          period: 'Nov 2023'
+        }
+      ]);
+      
+      setPaymentMethods([
+        {
+          id: '1',
+          type: 'card',
+          last4: '4242',
+          brand: 'Visa',
+          expiryMonth: 12,
+          expiryYear: 2027,
+          isDefault: true
+        }
+      ]);
+    } else {
+      setBillingHistory([]);
+      setPaymentMethods([]);
+    }
+  }, [userStats?.planType]);
 
   // Utility functions
   const getFileIcon = (contentType: string) => {
@@ -626,6 +685,11 @@ export default function Dashboard() {
       id: 'secrets',
       label: 'Pinning Secrets',
       isActive: activeSection === 'secrets',
+    },
+    {
+      id: 'payments',
+      label: 'Payments',
+      isActive: activeSection === 'payments',
     },
     {
       id: 'settings',
@@ -2024,6 +2088,355 @@ fetch('${window.location.origin}/api/upload', {
               </div>
             )}
 
+            </div>
+          </div>
+        )}
+
+        {/* Payments Section */}
+        {activeSection === 'payments' && (
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Billing & Payments</h1>
+              <p className="text-zinc-400">Manage your subscription and billing information</p>
+            </div>
+
+            {/* Current Plan & Usage */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Current Plan */}
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold text-white">Current Plan</h2>
+                  <span className={`px-3 py-1 text-sm font-medium rounded-full ${
+                    userStats?.planType === 'pro' 
+                      ? 'bg-white/10 text-white border border-white/20' 
+                      : 'bg-zinc-800 text-zinc-300 border border-zinc-700'
+                  }`}>
+                    {userStats?.planType === 'pro' ? 'Pro Plan' : 'Free Plan'}
+                  </span>
+                </div>
+
+                {userStats?.planType === 'pro' ? (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-3xl font-bold text-white">$10<span className="text-lg text-zinc-400">/month</span></p>
+                      <p className="text-zinc-400 mt-1">Billed monthly • Next billing: Dec 15, 2024</p>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center text-zinc-300">
+                        <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        100 GB storage included
+                      </div>
+                      <div className="flex items-center text-zinc-300">
+                        <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Unlimited private egress
+                      </div>
+                      <div className="flex items-center text-zinc-300">
+                        <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Priority support
+                      </div>
+                      <div className="flex items-center text-zinc-300">
+                        <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Advanced replication controls
+                      </div>
+                    </div>
+                    <button className="w-full mt-6 px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors font-medium text-sm">
+                      Downgrade to Free
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-3xl font-bold text-white">$0<span className="text-lg text-zinc-400">/month</span></p>
+                      <p className="text-zinc-400 mt-1">Free forever • No billing required</p>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center text-zinc-300">
+                        <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        1 GB storage included
+                      </div>
+                      <div className="flex items-center text-zinc-300">
+                        <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        1,000 private egress/month
+                      </div>
+                      <div className="flex items-center text-zinc-300">
+                        <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Community support
+                      </div>
+                      <div className="flex items-center text-zinc-400">
+                        <svg className="w-4 h-4 mr-3 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Basic replication only
+                      </div>
+                    </div>
+                    <button className="w-full mt-6 px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm">
+                      Upgrade to Pro
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Usage Summary */}
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+                <h2 className="text-xl font-semibold text-white mb-6">Usage This Month</h2>
+                
+                <div className="space-y-6">
+                  {/* Storage Usage */}
+                  <div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-zinc-400">Storage</span>
+                      <span className="text-white">{userStats ? formatFileSize(userStats.storageUsed) : '0 B'} / {userStats ? formatFileSize(userStats.storageLimit) : '1 GB'}</span>
+                    </div>
+                    <div className="w-full bg-zinc-800/50 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all duration-500 ${
+                          userStats && userStats.usagePercentage >= 90 ? 'bg-red-400' :
+                          userStats && userStats.usagePercentage >= 75 ? 'bg-yellow-400' :
+                          'bg-green-400'
+                        }`}
+                        style={{ width: `${userStats?.usagePercentage || 0}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-1">{userStats?.usagePercentage || 0}% of limit used</p>
+                  </div>
+
+                  {/* Private egress */}
+                  <div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-zinc-400">Private egress</span>
+                      <span className="text-zinc-500 text-xs">Coming soon</span>
+                    </div>
+                    <div className="w-full bg-zinc-800/50 rounded-full h-2">
+                      <div className="h-2 bg-zinc-600 rounded-full transition-all duration-500 w-0"></div>
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-1">
+                      We're working on implementing usage tracking for private egress
+                    </p>
+                  </div>
+
+
+                </div>
+              </div>
+            </div>
+
+            {/* Billing History */}
+            <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-white">Billing History</h2>
+                <button className="text-sm text-zinc-400 hover:text-white transition-colors">
+                  Download all invoices
+                </button>
+              </div>
+
+              {userStats?.planType === 'pro' ? (
+                <div className="space-y-3">
+                  {billingHistory.map((bill) => (
+                    <div key={bill.id} className="flex items-center justify-between p-4 bg-zinc-800/30 backdrop-blur-sm border border-zinc-700/30 rounded-lg">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-10 h-10 bg-zinc-800/80 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                          <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-white text-sm">{bill.plan}</h4>
+                          <p className="text-xs text-zinc-400">{bill.period}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <div className="text-right">
+                          <p className="text-sm text-white font-medium">{bill.amount}</p>
+                          <p className={`text-xs ${bill.status === 'paid' ? 'text-green-400' : 'text-yellow-400'}`}>
+                            {bill.status.charAt(0).toUpperCase() + bill.status.slice(1)}
+                          </p>
+                        </div>
+                        <button className="p-1 text-zinc-400 hover:text-white transition-colors">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="mx-auto w-16 h-16 bg-zinc-800 rounded-lg flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-white mb-2">No billing history</h3>
+                  <p className="text-zinc-400 mb-6">You're on the free plan with no billing required.</p>
+                  <button className="px-6 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm">
+                    Upgrade to Pro to see billing history
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Payment Method */}
+            {userStats?.planType === 'pro' && (
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold text-white">Payment Method</h2>
+                  <button className="px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors font-medium text-sm">
+                    {paymentMethods.length > 0 ? 'Update Payment Method' : 'Add Payment Method'}
+                  </button>
+                </div>
+
+                {paymentMethods.length > 0 ? (
+                  <div className="space-y-3">
+                    {paymentMethods.map((method) => (
+                      <div key={method.id} className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className={`w-12 h-8 rounded flex items-center justify-center ${
+                            method.brand.toLowerCase() === 'visa' 
+                              ? 'bg-gradient-to-r from-blue-600 to-purple-600'
+                              : method.brand.toLowerCase() === 'mastercard'
+                              ? 'bg-gradient-to-r from-red-600 to-orange-600'
+                              : 'bg-gradient-to-r from-gray-600 to-zinc-600'
+                          }`}>
+                            <span className="text-white text-xs font-bold">{method.brand.toUpperCase()}</span>
+                          </div>
+                          <div>
+                            <p className="text-white font-medium">•••• •••• •••• {method.last4}</p>
+                            <p className="text-zinc-400 text-sm">
+                              Expires {method.expiryMonth.toString().padStart(2, '0')}/{method.expiryYear}
+                              {method.isDefault && <span className="ml-2 text-xs bg-zinc-700 text-zinc-300 px-2 py-1 rounded">Default</span>}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="mx-auto w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center mb-4">
+                      <svg className="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-sm font-medium text-white mb-2">No payment method</h3>
+                    <p className="text-zinc-400 text-xs">Add a payment method to manage your subscription</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Plan Comparison */}
+            <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+              <h2 className="text-xl font-semibold text-white mb-6">Plan Comparison</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Free Plan */}
+                <div className={`p-6 rounded-lg border-2 transition-all ${
+                  userStats?.planType !== 'pro' 
+                    ? 'border-white/30 bg-white/5' 
+                    : 'border-zinc-700/50 bg-zinc-800/30'
+                }`}>
+                  <div className="text-center mb-6">
+                    <h3 className="text-lg font-semibold text-white">Free Plan</h3>
+                    <p className="text-3xl font-bold text-white mt-2">$0<span className="text-lg text-zinc-400">/month</span></p>
+                  </div>
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center text-zinc-300">
+                      <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      1 GB storage
+                    </div>
+                    <div className="flex items-center text-zinc-300">
+                      <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      1K private egress/month
+                    </div>
+
+                    <div className="flex items-center text-zinc-300">
+                      <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Community support
+                    </div>
+                  </div>
+                  {userStats?.planType !== 'pro' ? (
+                    <div className="text-center">
+                      <span className="px-4 py-2 bg-zinc-700 text-zinc-300 rounded-md font-medium text-sm">
+                        Current Plan
+                      </span>
+                    </div>
+                  ) : (
+                    <button className="w-full px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors font-medium text-sm">
+                      Downgrade to Free
+                    </button>
+                  )}
+                </div>
+
+                {/* Pro Plan */}
+                <div className={`p-6 rounded-lg border-2 transition-all ${
+                  userStats?.planType === 'pro' 
+                    ? 'border-white/30 bg-white/5' 
+                    : 'border-zinc-700/50 bg-zinc-800/30'
+                }`}>
+                  <div className="text-center mb-6">
+                    <h3 className="text-lg font-semibold text-white">Pro Plan</h3>
+                    <p className="text-3xl font-bold text-white mt-2">$10<span className="text-lg text-zinc-400">/month</span></p>
+                  </div>
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center text-zinc-300">
+                      <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      100 GB storage
+                    </div>
+                    <div className="flex items-center text-zinc-300">
+                      <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Unlimited private egress
+                    </div>
+
+                    <div className="flex items-center text-zinc-300">
+                      <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Priority support
+                    </div>
+                    <div className="flex items-center text-zinc-300">
+                      <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Advanced replication
+                    </div>
+                  </div>
+                  {userStats?.planType === 'pro' ? (
+                    <div className="text-center">
+                      <span className="px-4 py-2 bg-white/10 text-white rounded-md font-medium text-sm">
+                        Current Plan
+                      </span>
+                    </div>
+                  ) : (
+                    <button className="w-full px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm">
+                      Upgrade to Pro
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
