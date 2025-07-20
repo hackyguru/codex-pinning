@@ -4,6 +4,7 @@ import "@/styles/globals.css";
 import type { AppProps } from "next/app";
 import { PrivyProvider } from '@privy-io/react-auth';
 import { Figtree } from 'next/font/google';
+import Script from 'next/script';
 
 // Configure Figtree font
 const figtree = Figtree({
