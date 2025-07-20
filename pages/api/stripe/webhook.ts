@@ -192,6 +192,13 @@ export default async function handler(
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
         
+        // Get user from subscription
+        const { data: subData } = await supabaseServer
+          .from('subscriptions')
+          .select('user_id')
+          .eq('stripe_subscription_id', subscription.id)
+          .single();
+
         // Update subscription status
         await supabaseServer
           .from('subscriptions')
@@ -203,6 +210,19 @@ export default async function handler(
             updated_at: new Date().toISOString()
           })
           .eq('stripe_subscription_id', subscription.id);
+
+        // If subscription is marked for cancellation, downgrade user immediately
+        if (subData && (subscription as any).cancel_at_period_end) {
+          await supabaseServer
+            .from('users')
+            .update({ 
+              plan_type: 'free',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', subData.user_id);
+
+          console.log(`User ${subData.user_id} downgraded due to subscription cancellation`);
+        }
 
         console.log(`Subscription ${subscription.id} updated`);
         break;

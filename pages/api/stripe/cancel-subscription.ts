@@ -70,11 +70,10 @@ const cancelSubscriptionHandler = withAuth(async (req, res) => {
           .from('billing_history')
           .insert({
             user_id: userId,
-            amount: 0,
+            amount_cents: 0,
             currency: 'usd',
-            status: 'manual_downgrade',
+            status: 'paid',
             plan_type: 'free',
-            description: 'Manual downgrade due to missing subscription record',
             created_at: new Date().toISOString()
           });
 
@@ -98,6 +97,7 @@ const cancelSubscriptionHandler = withAuth(async (req, res) => {
     const { error: updateSubError } = await supabaseServer
       .from('subscriptions')
       .update({
+        plan_type: 'free',
         cancel_at_period_end: true,
         updated_at: new Date().toISOString()
       })
@@ -128,9 +128,10 @@ const cancelSubscriptionHandler = withAuth(async (req, res) => {
       .insert({
         user_id: userId,
         subscription_id: subscription.id,
-        amount: 0,
-        description: 'Subscription cancelled - downgraded to Free plan',
-        invoice_status: 'cancelled',
+        amount_cents: 0,
+        currency: 'usd',
+        status: 'paid',
+        plan_type: 'free',
         created_at: new Date().toISOString()
       });
 

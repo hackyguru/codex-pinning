@@ -143,7 +143,8 @@ export default function Dashboard() {
         },
       });
 
-      const { success, error } = await response.json();
+      const responseData = await response.json();
+      const { success, error } = responseData;
 
       if (error) {
         alert(error);
@@ -911,9 +912,9 @@ export default function Dashboard() {
         {activeSection === 'overview' && (
           <div className="space-y-8">
             {/* Stats Cards */}
-        {userStats && (
+            {userStats ? (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Storage Usage */}
+        {/* Storage Usage */}
                 <div className="lg:col-span-2 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6 flex flex-col">
                   <div className="flex items-center justify-between mb-6">
                     <div>
@@ -976,6 +977,57 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Storage Usage Skeleton */}
+                <div className="lg:col-span-2 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6 flex flex-col">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="text-lg font-semibold text-white">Storage Usage</h2>
+                      <p className="text-zinc-400 text-sm">Track your storage consumption</p>
+                    </div>
+                    <div className="h-6 w-12 bg-zinc-700/50 rounded-full animate-pulse"></div>
+                  </div>
+                  
+                  <div className="flex-1 flex flex-col justify-center space-y-6">
+                    <div className="flex justify-between text-sm">
+                      <div className="h-4 w-20 bg-zinc-700/50 rounded animate-pulse"></div>
+                      <div className="h-4 w-20 bg-zinc-700/50 rounded animate-pulse"></div>
+                    </div>
+                    <div className="w-full bg-zinc-800/50 rounded-full h-3">
+                      <div className="h-3 bg-zinc-700/50 rounded-full w-0 animate-pulse"></div>
+                    </div>
+                    
+                    <div className="flex justify-between text-sm">
+                      <div className="h-4 w-16 bg-zinc-700/50 rounded animate-pulse"></div>
+                      <div className="h-4 w-16 bg-zinc-700/50 rounded animate-pulse"></div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Quick Stats Skeleton */}
+                <div className="flex flex-col space-y-4 h-full">
+                  <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6 flex-1 flex flex-col justify-center">
+                    <div className="flex items-center">
+                      <div className="w-12 h-12 bg-zinc-700/50 rounded-lg animate-pulse mr-4"></div>
+                      <div>
+                        <div className="h-4 w-20 bg-zinc-700/50 rounded animate-pulse mb-1"></div>
+                        <div className="h-6 w-8 bg-zinc-700/50 rounded animate-pulse"></div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6 flex-1 flex flex-col justify-center">
+                    <div className="flex items-center">
+                      <div className="w-12 h-12 bg-zinc-700/50 rounded-lg animate-pulse mr-4"></div>
+                      <div>
+                        <div className="h-4 w-28 bg-zinc-700/50 rounded animate-pulse mb-1"></div>
+                        <div className="h-6 w-8 bg-zinc-700/50 rounded animate-pulse"></div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -1301,21 +1353,23 @@ fetch('${window.location.origin}/api/upload', {
               </div>
             </div>
 
-            {allFiles.length === 0 ? (
-              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-12 text-center">
-                <div className="mx-auto w-16 h-16 bg-zinc-800 rounded-lg flex items-center justify-center mb-4">
-                  <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-medium text-white mb-2">No files yet</h3>
-                <p className="text-zinc-400 mb-6">Upload your first file to get started</p>
+                        {allFiles.length === 0 ? (
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg h-[480px] flex items-center justify-center">
+                <div className="text-center">
+                  <div className="mx-auto w-16 h-16 bg-zinc-800 rounded-lg flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-white mb-2">No files yet</h3>
+                  <p className="text-zinc-400 mb-6">Upload your first file to get started</p>
                         <button
-                  onClick={() => setActiveSection('overview')}
-                  className="inline-flex items-center px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors"
-                >
-                  Upload Files
-                </button>
+                    onClick={() => setActiveSection('overview')}
+                    className="inline-flex items-center px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors"
+                  >
+                    Upload Files
+                  </button>
+                </div>
               </div>
             ) : viewMode === 'grid' ? (
                               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -1828,21 +1882,23 @@ fetch('${window.location.origin}/api/upload', {
 
             {/* Secrets List */}
                 {pinningSecrets.length === 0 ? (
-              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-12 text-center">
-                <div className="mx-auto w-16 h-16 bg-zinc-800 rounded-lg flex items-center justify-center mb-4">
-                  <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 12H9v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4c0-7.2 5.3-13.2 12.5-12.5A6 6 0 0115 7z" />
-                  </svg>
+              <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg h-[480px] flex items-center justify-center">
+                <div className="text-center">
+                  <div className="mx-auto w-16 h-16 bg-zinc-800 rounded-lg flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 12H9v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4c0-7.2 5.3-13.2 12.5-12.5A6 6 0 0115 7z" />
+                    </svg>
                           </div>
-                <h3 className="text-lg font-medium text-white mb-2">No pinning secrets yet</h3>
-                <p className="text-zinc-400 mb-6">Create your first secret to start using the API</p>
-                <button
-                  onClick={() => setShowCreateSecretModal(true)}
-                  className="inline-flex items-center px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors"
-                >
-                  Create Secret
-                </button>
+                  <h3 className="text-lg font-medium text-white mb-2">No pinning secrets yet</h3>
+                  <p className="text-zinc-400 mb-6">Create your first secret to start using the API</p>
+                  <button
+                    onClick={() => setShowCreateSecretModal(true)}
+                    className="inline-flex items-center px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors"
+                  >
+                    Create Secret
+                  </button>
                         </div>
+              </div>
             ) : (
               <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg overflow-hidden">
                 <div className="divide-y divide-zinc-800">
@@ -1954,7 +2010,7 @@ fetch('${window.location.origin}/api/upload', {
                     onChange={(e) => setGatewayCid(e.target.value)}
                     onKeyPress={handleGatewayKeyPress}
                     placeholder="e.g., QmYyQSo1c1Ym7orWxLYvCrM2EmxFTANf8wXmmE7DWjhx5N"
-                    className="block w-full px-4 py-3 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-600 focus:border-zinc-600"
+                    className="block w-full px-4 py-3 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-600 focus:border-zinc-600 text-sm"
                   />
                 </div>
 
@@ -2259,9 +2315,6 @@ fetch('${window.location.origin}/api/upload', {
                         Advanced replication controls
                       </div>
                     </div>
-                    <button className="w-full mt-6 px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors font-medium text-sm">
-                      Downgrade to Free
-                    </button>
                   </div>
                 ) : userStats?.planType === 'enterprise' ? (
                   <div className="space-y-4">
@@ -2467,9 +2520,9 @@ fetch('${window.location.origin}/api/upload', {
                               </svg>
                             </button>
                           )}
-                        </div>
                       </div>
-                    ))
+                    </div>
+                  ))
                   ) : (
                     <div className="text-center py-8">
                       <div className="mx-auto w-12 h-12 bg-zinc-800 rounded-lg flex items-center justify-center mb-4">
@@ -2480,8 +2533,8 @@ fetch('${window.location.origin}/api/upload', {
                       <h3 className="text-lg font-medium text-white mb-2">No billing history yet</h3>
                       <p className="text-zinc-400">Your billing history will appear here after your first payment.</p>
                     </div>
-                  )}
-                </div>
+                )}
+              </div>
               ) : (
                 <div className="text-center py-12">
                   <div className="mx-auto w-16 h-16 bg-zinc-800 rounded-lg flex items-center justify-center mb-4">
@@ -2494,9 +2547,9 @@ fetch('${window.location.origin}/api/upload', {
                   <button className="px-6 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm">
                     Upgrade to Pro to see billing history
                   </button>
-                </div>
-              )}
             </div>
+          )}
+        </div>
 
 
 
@@ -2506,7 +2559,7 @@ fetch('${window.location.origin}/api/upload', {
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Free Plan */}
-                <div className={`p-6 rounded-lg border-2 transition-all ${
+                <div className={`p-6 rounded-lg border-2 transition-all flex flex-col h-full ${
                   userStats?.planType === 'free' 
                     ? 'border-white/30 bg-white/5' 
                     : 'border-zinc-700/50 bg-zinc-800/30'
@@ -2514,8 +2567,8 @@ fetch('${window.location.origin}/api/upload', {
                   <div className="text-center mb-6">
                     <h3 className="text-lg font-semibold text-white">Free Plan</h3>
                     <p className="text-3xl font-bold text-white mt-2">$0<span className="text-lg text-zinc-400">/month</span></p>
-                  </div>
-                  <div className="space-y-3 mb-6">
+      </div>
+                  <div className="space-y-3 mb-6 flex-grow">
                     <div className="flex items-center text-zinc-300">
                       <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -2535,24 +2588,20 @@ fetch('${window.location.origin}/api/upload', {
                       Community support
                     </div>
                   </div>
-                  {userStats?.planType === 'free' ? (
-                    <div className="text-center">
-                      <span className="px-4 py-2 bg-zinc-700 text-zinc-300 rounded-md font-medium text-sm">
-                        Current Plan
-                      </span>
-                    </div>
-                  ) : (
-                    <button 
-                      onClick={initiateDowngrade}
-                      className="w-full px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors font-medium text-sm"
-                    >
-                      Downgrade to Free
-                    </button>
-                  )}
+                  <div className="mt-auto">
+                    {userStats?.planType !== 'free' && (
+                      <button 
+                        onClick={initiateDowngrade}
+                        className="w-full px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors font-medium text-sm"
+                      >
+                        Downgrade to Free
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Pro Plan */}
-                <div className={`p-6 rounded-lg border-2 transition-all ${
+                <div className={`p-6 rounded-lg border-2 transition-all flex flex-col h-full ${
                   userStats?.planType === 'pro' 
                     ? 'border-white/30 bg-white/5' 
                     : 'border-zinc-700/50 bg-zinc-800/30'
@@ -2561,7 +2610,7 @@ fetch('${window.location.origin}/api/upload', {
                     <h3 className="text-lg font-semibold text-white">Pro Plan</h3>
                     <p className="text-3xl font-bold text-white mt-2">$10<span className="text-lg text-zinc-400">/month</span></p>
                   </div>
-                  <div className="space-y-3 mb-6">
+                  <div className="space-y-3 mb-6 flex-grow">
                     <div className="flex items-center text-zinc-300">
                       <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -2587,32 +2636,27 @@ fetch('${window.location.origin}/api/upload', {
                       Advanced replication
                     </div>
                   </div>
-                  {userStats?.planType === 'pro' ? (
-                    <div className="space-y-2">
-                      <div className="text-center">
-                        <span className="px-4 py-2 bg-white/10 text-white rounded-md font-medium text-sm">
-                          Current Plan
-                        </span>
-                      </div>
+                  <div className="mt-auto">
+                    {userStats?.planType === 'pro' ? (
                       <button 
                         onClick={initiateDowngrade}
                         className="w-full px-4 py-2 bg-red-600/80 text-white border border-red-500/50 rounded-md hover:bg-red-600 transition-colors font-medium text-sm"
                       >
                         Downgrade to Free
                       </button>
-                    </div>
-                  ) : (
-                    <button 
-                      onClick={handleUpgradeToPro}
-                      className="w-full px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm"
-                    >
-                      Upgrade to Pro
-                    </button>
-                  )}
+                    ) : (
+                      <button 
+                        onClick={handleUpgradeToPro}
+                        className="w-full px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm"
+                      >
+                        Upgrade to Pro
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Enterprise Plan */}
-                <div className={`p-6 rounded-lg border-2 transition-all ${
+                <div className={`p-6 rounded-lg border-2 transition-all flex flex-col h-full ${
                   userStats?.planType === 'enterprise' 
                     ? 'border-white/30 bg-white/5' 
                     : 'border-zinc-700/50 bg-zinc-800/30'
@@ -2621,7 +2665,7 @@ fetch('${window.location.origin}/api/upload', {
                     <h3 className="text-lg font-semibold text-white">Enterprise Plan</h3>
                     <p className="text-3xl font-bold text-white mt-2">Custom<span className="text-lg text-zinc-400"> pricing</span></p>
                   </div>
-                  <div className="space-y-3 mb-6">
+                  <div className="space-y-3 mb-6 flex-grow">
                     <div className="flex items-center text-zinc-300">
                       <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -2653,17 +2697,13 @@ fetch('${window.location.origin}/api/upload', {
                       Custom integrations
                     </div>
                   </div>
-                  {userStats?.planType === 'enterprise' ? (
-                    <div className="text-center">
-                      <span className="px-4 py-2 bg-white/10 text-white rounded-md font-medium text-sm">
-                        Current Plan
-                      </span>
-                    </div>
-                  ) : (
-                    <button className="w-full px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors font-medium text-sm">
-                      Contact Sales
-                    </button>
-                  )}
+                  <div className="mt-auto">
+                    {userStats?.planType !== 'enterprise' && (
+                      <button className="w-full px-4 py-2 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 transition-colors font-medium text-sm">
+                        Contact Sales
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
