@@ -34,79 +34,136 @@ const billingHistoryHandler = withAuth(async (req, res) => {
       .eq('user_id', userId)
       .single();
 
-    if (subError || !subscription?.stripe_customer_id) {
-      // User has no Stripe customer ID, return empty history
-      return res.status(200).json({ billingHistory: [] });
-    }
+    let stripeInvoices: BillingHistoryItem[] = [];
 
-    // Fetch invoices from Stripe
-    const invoices = await stripe.invoices.list({
-      customer: subscription.stripe_customer_id,
-      limit: 10, // Last 10 invoices
-      status: 'paid', // Only show paid invoices for now
-    });
-
-        // Transform Stripe invoices into our billing history format
-    const billingHistory: BillingHistoryItem[] = invoices.data
-      .filter((invoice): invoice is Stripe.Invoice & { id: string } => Boolean(invoice.id))
-      .map((invoice) => {
-        // Get the subscription line item to determine plan
-        const subscriptionItem = invoice.lines.data.find(
-          (line) => line.subscription
-        );
-        
-        // Format amount
-        const amount = new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: invoice.currency.toUpperCase(),
-        }).format(invoice.amount_paid / 100);
-
-        // Format date
-        const date = new Date(invoice.created * 1000).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-        });
-
-        // Format billing period
-        let period = '';
-        if (invoice.period_start && invoice.period_end) {
-          const startDate = new Date(invoice.period_start * 1000);
-          const endDate = new Date(invoice.period_end * 1000);
-          
-          const startMonth = startDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-          const endMonth = endDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-          
-          if (startMonth === endMonth) {
-            period = startMonth;
-          } else {
-            period = `${startMonth} - ${endMonth}`;
-          }
-        }
-
-        // Determine plan name from description or metadata
-        let planName = 'Pro Plan'; // Default
-        if (subscriptionItem?.description) {
-          if (subscriptionItem.description.toLowerCase().includes('enterprise')) {
-            planName = 'Enterprise Plan';
-          } else if (subscriptionItem.description.toLowerCase().includes('pro')) {
-            planName = 'Pro Plan';
-          }
-        }
-
-        return {
-          id: invoice.id,
-          date,
-          amount,
-          status: invoice.status || 'unknown',
-          plan: planName,
-          period: period || date,
-          invoice_url: invoice.hosted_invoice_url || undefined,
-          invoice_pdf: invoice.invoice_pdf || undefined,
-        };
+    // Fetch invoices from Stripe if customer exists
+    if (subscription?.stripe_customer_id) {
+      const invoices = await stripe.invoices.list({
+        customer: subscription.stripe_customer_id,
+        limit: 10, // Last 10 invoices
+        status: 'paid', // Only show paid invoices
       });
 
-    res.status(200).json({ billingHistory });
+      // Transform Stripe invoices into our billing history format
+              stripeInvoices = invoices.data
+        .filter((invoice): invoice is Stripe.Invoice & { id: string } => Boolean(invoice.id))
+        .map((invoice) => {
+          // Get the subscription line item to determine plan
+          const subscriptionItem = invoice.lines.data.find(
+            (line) => line.subscription
+          );
+          
+          // Format amount
+          const amount = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: invoice.currency.toUpperCase(),
+          }).format(invoice.amount_paid / 100);
+
+          // Format date
+          const date = new Date(invoice.created * 1000).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+          });
+
+          // Format billing period
+          let period = '';
+          if (invoice.period_start && invoice.period_end) {
+            const startDate = new Date(invoice.period_start * 1000);
+            const endDate = new Date(invoice.period_end * 1000);
+            
+            const startMonth = startDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            const endMonth = endDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            
+            if (startMonth === endMonth) {
+              period = startMonth;
+            } else {
+              period = `${startMonth} - ${endMonth}`;
+            }
+          }
+
+          // Determine plan name from description or metadata
+          let planName = 'Pro Plan'; // Default
+          if (subscriptionItem?.description) {
+            if (subscriptionItem.description.toLowerCase().includes('enterprise')) {
+              planName = 'Enterprise Plan';
+            } else if (subscriptionItem.description.toLowerCase().includes('pro')) {
+              planName = 'Pro Plan';
+            }
+          }
+
+          return {
+            id: invoice.id,
+            date,
+            amount,
+            status: invoice.status || 'unknown',
+            plan: planName,
+            period: period || date,
+            invoice_url: invoice.hosted_invoice_url || undefined,
+            invoice_pdf: invoice.invoice_pdf || undefined,
+          };
+        });
+    }
+
+    // Fetch local billing history from Supabase
+    const { data: localBillingHistory } = await supabaseServer
+      .from('billing_history')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    // Transform local billing history into our format
+    const localHistory: BillingHistoryItem[] = (localBillingHistory || []).map((record) => {
+      // Format amount
+      const amount = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: record.currency.toUpperCase(),
+      }).format(record.amount_cents / 100);
+
+      // Format date
+      const date = new Date(record.created_at).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+
+      // Format period for downgrades/cancellations
+      let period = date;
+      if (record.billing_period_start && record.billing_period_end) {
+        const startDate = new Date(record.billing_period_start);
+        const endDate = new Date(record.billing_period_end);
+        
+        const startMonth = startDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        const endMonth = endDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        
+        if (startMonth === endMonth) {
+          period = startMonth;
+        } else {
+          period = `${startMonth} - ${endMonth}`;
+        }
+      }
+
+      // Format plan name
+      let planName = record.plan_type.charAt(0).toUpperCase() + record.plan_type.slice(1) + ' Plan';
+
+      return {
+        id: record.id,
+        date,
+        amount,
+        status: record.status,
+        plan: planName,
+        period,
+        invoice_url: undefined,
+        invoice_pdf: undefined,
+      };
+    });
+
+    // Combine and sort all billing history
+    const allHistory = [...stripeInvoices, ...localHistory];
+    allHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    res.status(200).json({ billingHistory: allHistory });
   } catch (error) {
     console.error('Error fetching billing history:', error);
     res.status(500).json({ error: 'Failed to fetch billing history' });
