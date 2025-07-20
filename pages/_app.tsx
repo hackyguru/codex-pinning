@@ -1,17 +1,15 @@
-'use client';
-
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
 import { PrivyProvider } from '@privy-io/react-auth';
 import { Figtree } from 'next/font/google';
-import Script from 'next/script';
 
-// Configure Figtree font
+// Configure Figtree font with stable configuration
 const figtree = Figtree({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
   variable: '--font-figtree',
   display: 'swap',
+  fallback: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
 });
 
 export default function App({ Component, pageProps }: AppProps) {
@@ -21,8 +19,8 @@ export default function App({ Component, pageProps }: AppProps) {
     throw new Error('NEXT_PUBLIC_PRIVY_APP_ID environment variable is required');
   }
   
-  return (
-    <div className={`${figtree.variable} font-figtree`}>
+    return (
+    <main className={figtree.className}>
       <PrivyProvider
         appId={appId}
         config={{
@@ -44,6 +42,6 @@ export default function App({ Component, pageProps }: AppProps) {
       >
         <Component {...pageProps} />
       </PrivyProvider>
-    </div>
+    </main>
   );
 }

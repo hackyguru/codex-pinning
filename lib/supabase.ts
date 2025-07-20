@@ -6,9 +6,8 @@ export interface Database {
     Tables: {
       users: {
         Row: {
-          id: string; // Now TEXT to support Privy DIDs
+          id: string; // TEXT to support Privy DIDs
           email: string;
-          plan_type: 'free' | 'pro';
           storage_used: number;
           created_at: string;
           updated_at: string;
@@ -16,7 +15,6 @@ export interface Database {
         Insert: {
           id: string; // Required for Privy DID
           email: string;
-          plan_type?: 'free' | 'pro';
           storage_used?: number;
           created_at?: string;
           updated_at?: string;
@@ -24,7 +22,6 @@ export interface Database {
         Update: {
           id?: string;
           email?: string;
-          plan_type?: 'free' | 'pro';
           storage_used?: number;
           updated_at?: string;
         };
@@ -69,12 +66,12 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
-// Plan limits
-export const PLAN_LIMITS = {
-  free: 10 * 1024 * 1024, // 10MB in bytes
-  pro: 50 * 1024 * 1024,  // 50MB in bytes
-  enterprise: 1024 * 1024 * 1024, // 1GB in bytes - set manually per customer
-} as const;
+// Re-export from centralized plan configuration
+export { 
+  getStorageLimit, 
+  canUploadFile,
+  type PlanType
+} from './plans';
 
 // Helper function to format file size
 export const formatFileSize = (bytes: number): string => {
@@ -83,15 +80,4 @@ export const formatFileSize = (bytes: number): string => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
-
-// Helper function to get user's storage limit
-export const getStorageLimit = (planType: 'free' | 'pro' | 'enterprise'): number => {
-  return PLAN_LIMITS[planType];
-};
-
-// Helper function to check if user can upload file
-export const canUploadFile = (currentUsage: number, fileSize: number, planType: 'free' | 'pro' | 'enterprise'): boolean => {
-  const limit = getStorageLimit(planType);
-  return (currentUsage + fileSize) <= limit;
 }; 

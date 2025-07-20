@@ -47,42 +47,6 @@ const cancelSubscriptionHandler = withAuth(async (req, res) => {
     console.log(`Debug: User ${userId} current plan:`, user?.plan_type);
 
     if (!subscription) {
-      // If no subscription but user is on paid plan, offer manual downgrade
-      if (user?.plan_type === 'pro' || user?.plan_type === 'enterprise') {
-        console.log(`User ${userId} has plan ${user.plan_type} but no subscription record. Performing manual downgrade.`);
-        
-        // Manually downgrade user to free
-        const { error: updateError } = await supabaseServer
-          .from('users')
-          .update({ 
-            plan_type: 'free',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', userId);
-
-        if (updateError) {
-          console.error('Error updating user plan:', updateError);
-          return res.status(500).json({ error: 'Failed to update user plan' });
-        }
-
-        // Create billing history for manual downgrade
-        await supabaseServer
-          .from('billing_history')
-          .insert({
-            user_id: userId,
-            amount_cents: 0,
-            currency: 'usd',
-            status: 'paid',
-            plan_type: 'free',
-            created_at: new Date().toISOString()
-          });
-
-        return res.status(200).json({ 
-          success: true, 
-          message: 'Successfully downgraded to free plan (manual)' 
-        });
-      }
-      
       return res.status(400).json({ error: 'No active subscription found' });
     }
 
@@ -93,7 +57,7 @@ const cancelSubscriptionHandler = withAuth(async (req, res) => {
       });
     }
 
-    // Update subscription status in database
+    // Update subscription status in database (SINGLE source of truth)
     const { error: updateSubError } = await supabaseServer
       .from('subscriptions')
       .update({
@@ -106,20 +70,6 @@ const cancelSubscriptionHandler = withAuth(async (req, res) => {
     if (updateSubError) {
       console.error('Error updating subscription:', updateSubError);
       return res.status(500).json({ error: 'Failed to update subscription' });
-    }
-
-    // Update user plan to free immediately (since they requested downgrade)
-    const { error: updateUserError } = await supabaseServer
-      .from('users')
-      .update({
-        plan_type: 'free',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userId);
-
-    if (updateUserError) {
-      console.error('Error updating user plan:', updateUserError);
-      return res.status(500).json({ error: 'Failed to update user plan' });
     }
 
     // Add billing history record

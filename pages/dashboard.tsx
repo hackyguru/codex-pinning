@@ -5,6 +5,7 @@ import { UserStats } from '../lib/userService';
 import { FileWithFormatted } from '../lib/fileService';
 import Image from 'next/image';
 import { loadStripe } from '@stripe/stripe-js';
+import { getPlan, type PlanType } from '../lib/plans';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -101,8 +102,16 @@ export default function Dashboard() {
     error: null,
   });
 
-  // Upgrade to Pro function
+  // Coming soon modal state
+  const [showComingSoonModal, setShowComingSoonModal] = useState(false);
+
+  // Upgrade to Pro function - TEMPORARILY DISABLED (show coming soon popup)
   const handleUpgradeToPro = async () => {
+    // Show coming soon popup instead of going to Stripe
+    setShowComingSoonModal(true);
+    
+    // ORIGINAL CODE COMMENTED OUT - UNCOMMENT WHEN WEBHOOKS ARE READY
+    /*
     const userEmail = getUserEmail();
     
     console.log('Upgrade attempt:', { 
@@ -159,6 +168,7 @@ export default function Dashboard() {
       console.error('Error creating checkout session:', error);
       alert('Failed to start upgrade process. Please try again.');
     }
+    */
   };
 
   // Validate coupon code
@@ -2482,7 +2492,7 @@ fetch('${window.location.origin}/api/upload', {
                       ? 'bg-purple-900/20 text-purple-300 border border-purple-500/30'
                       : 'bg-zinc-800 text-zinc-300 border border-zinc-700'
                   }`}>
-                    {userStats?.planType === 'pro' ? 'Pro Plan' : userStats?.planType === 'enterprise' ? 'Enterprise Plan' : 'Free Plan'}
+                    {getPlan(userStats?.planType as PlanType || 'free').displayName}
                   </span>
                 </div>
 
@@ -2497,7 +2507,7 @@ fetch('${window.location.origin}/api/upload', {
                         <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
-                        50 MB storage included
+                        {getPlan('pro').storage.formatted} storage included
                       </div>
                       <div className="flex items-center text-zinc-300">
                         <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2566,7 +2576,7 @@ fetch('${window.location.origin}/api/upload', {
                         <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
-                        10 MB storage included
+                        {getPlan('free').storage.formatted} storage included
                       </div>
                       <div className="flex items-center text-zinc-300">
                         <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2897,7 +2907,7 @@ fetch('${window.location.origin}/api/upload', {
                       <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      50 MB storage
+                      {getPlan('pro').storage.formatted} storage
                     </div>
                     <div className="flex items-center text-zinc-300">
                       <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3401,6 +3411,31 @@ fetch('${window.location.origin}/api/upload', {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Coming Soon Modal */}
+      {showComingSoonModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-6 max-w-md w-full">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-3">Pro Accounts Coming Soon</h3>
+              <p className="text-zinc-400 mb-6">
+                We're working hard to bring you Pro accounts with advanced features. Stay tuned for updates!
+              </p>
+              <button
+                onClick={() => setShowComingSoonModal(false)}
+                className="w-full px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium"
+              >
+                Got it
+              </button>
+            </div>
           </div>
         </div>
       )}

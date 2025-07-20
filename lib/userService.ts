@@ -1,5 +1,6 @@
 import { supabaseServer } from './supabase-server';
-import { Database, getStorageLimit, canUploadFile, formatFileSize } from './supabase';
+import { Database, formatFileSize } from './supabase';
+import { getStorageLimit, canUploadFile, type PlanType } from './plans';
 
 export type UserRecord = Database['public']['Tables']['users']['Row'];
 export type UserInsert = Database['public']['Tables']['users']['Insert'];
@@ -8,7 +9,7 @@ export type UserUpdate = Database['public']['Tables']['users']['Update'];
 export interface UserStats {
   storageUsed: number;
   storageLimit: number;
-  planType: 'free' | 'pro' | 'enterprise';
+  planType: PlanType;
   email: string;
   filesCount: number;
   usagePercentage: number;
@@ -16,12 +17,11 @@ export interface UserStats {
 
 export class UserService {
   /**
-   * Get user's current plan from subscriptions table (source of truth)
-   * Falls back to users.plan_type for backward compatibility
+   * Get user's current plan from subscriptions table (SINGLE source of truth)
    */
   static async getUserPlan(userId: string): Promise<'free' | 'pro' | 'enterprise'> {
     try {
-      // First, check for active subscription
+      // Check for active subscription (ONLY source of truth)
       const { data: subscription, error: subError } = await supabaseServer
         .from('subscriptions')
         .select('plan_type')
@@ -33,18 +33,8 @@ export class UserService {
         return subscription.plan_type as 'free' | 'pro' | 'enterprise';
       }
 
-      // Fallback to users table for backward compatibility
-      const { data: user, error: userError } = await supabaseServer
-        .from('users')
-        .select('plan_type')
-        .eq('id', userId)
-        .single();
-
-      if (!userError && user) {
-        return user.plan_type as 'free' | 'pro' | 'enterprise';
-      }
-
-      // Default to free if no data found
+      // If no active subscription found, default to free
+      // This ensures new users get free plan until they upgrade
       return 'free';
     } catch (error) {
       console.error('Error getting user plan:', error);
@@ -87,13 +77,12 @@ export class UserService {
 
         return data;
       } else {
-        // Create new user
+        // Create new user (no plan_type since we removed that column)
         const { data, error } = await supabaseServer
           .from('users')
           .insert({
             id: userId,
             email: email,
-            plan_type: planType,
             storage_used: 0
           })
           .select()
@@ -102,6 +91,27 @@ export class UserService {
         if (error) {
           console.error('Error creating user profile:', error);
           return null;
+        }
+
+        // CRITICAL: Create subscription record for new user
+        console.log(`Creating subscription record for new user ${userId} with plan: ${planType}`);
+        const { error: subscriptionError } = await supabaseServer
+          .from('subscriptions')
+          .insert({
+            user_id: userId,
+            plan_type: planType,
+            status: 'active',
+            cancel_at_period_end: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+
+        if (subscriptionError) {
+          console.error('Error creating subscription record for new user:', subscriptionError);
+          // Don't fail completely - user profile was created
+          console.warn(`User ${userId} created without subscription record - will default to free plan`);
+        } else {
+          console.log(`✅ New user ${userId} created with ${planType} subscription`);
         }
 
         return data;
@@ -127,8 +137,10 @@ export class UserService {
         return { canUpload: false, reason: 'User profile not found' };
       }
 
-      const limit = getStorageLimit(userProfile.plan_type);
-      const canUpload = canUploadFile(userProfile.storage_used, fileSize, userProfile.plan_type);
+      // Get plan type from subscriptions table (single source of truth)
+      const planType = await this.getUserPlan(userId);
+      const limit = getStorageLimit(planType);
+      const canUpload = canUploadFile(userProfile.storage_used, fileSize, planType);
 
       if (!canUpload) {
         const remainingSpace = limit - userProfile.storage_used;
