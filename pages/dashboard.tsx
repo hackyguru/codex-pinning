@@ -81,6 +81,20 @@ export default function Dashboard() {
   const [showDowngradeConfirm, setShowDowngradeConfirm] = useState(false);
   const [downgradeStep, setDowngradeStep] = useState(1);
 
+  // Coupon code state
+  const [couponCode, setCouponCode] = useState('');
+  const [couponValidation, setCouponValidation] = useState<{
+    isValidating: boolean;
+    isValid: boolean;
+    discount: any;
+    error: string | null;
+  }>({
+    isValidating: false,
+    isValid: false,
+    discount: null,
+    error: null,
+  });
+
   // Upgrade to Pro function
   const handleUpgradeToPro = async () => {
     const userEmail = getUserEmail();
@@ -89,7 +103,8 @@ export default function Dashboard() {
       userId: user?.id, 
       userEmail,
       linkedAccounts: user?.linkedAccounts,
-      authType: user?.linkedAccounts?.[0]?.type
+      authType: user?.linkedAccounts?.[0]?.type,
+      couponCode: couponValidation.isValid ? couponCode : null
     });
     
     if (!user?.id || !userEmail) {
@@ -101,19 +116,35 @@ export default function Dashboard() {
       // Get auth token from Privy
       const authToken = await getAccessToken();
       
+      const requestBody: any = {};
+      
+      // Include coupon code if validated
+      if (couponValidation.isValid && couponCode) {
+        requestBody.couponCode = couponCode;
+      }
+      
       const response = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`,
         },
+        body: JSON.stringify(requestBody),
       });
 
-      const { sessionUrl, error } = await response.json();
+      const { sessionUrl, error, couponApplied } = await response.json();
 
       if (error) {
         alert(error);
         return;
+      }
+
+      // Show confirmation if coupon was applied
+      if (couponApplied) {
+        const confirmMessage = `Coupon "${couponCode}" will be applied! Final price: ${couponValidation.discount?.formattedFinalPrice || 'Discounted'}. Continue to checkout?`;
+        if (!confirm(confirmMessage)) {
+          return;
+        }
       }
 
       // Redirect to Stripe checkout
@@ -122,6 +153,71 @@ export default function Dashboard() {
       console.error('Error creating checkout session:', error);
       alert('Failed to start upgrade process. Please try again.');
     }
+  };
+
+  // Validate coupon code
+  const validateCouponCode = async () => {
+    if (!couponCode.trim()) {
+      setCouponValidation({
+        isValidating: false,
+        isValid: false,
+        discount: null,
+        error: 'Please enter a coupon code',
+      });
+      return;
+    }
+
+    setCouponValidation(prev => ({ ...prev, isValidating: true, error: null }));
+
+    try {
+      const authToken = await getAccessToken();
+      
+      const response = await fetch('/api/stripe/validate-coupon', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ couponCode: couponCode.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (data.valid) {
+        setCouponValidation({
+          isValidating: false,
+          isValid: true,
+          discount: data,
+          error: null,
+        });
+      } else {
+        setCouponValidation({
+          isValidating: false,
+          isValid: false,
+          discount: null,
+          error: data.error || 'Invalid coupon code',
+        });
+      }
+    } catch (error) {
+      console.error('Error validating coupon:', error);
+      setCouponValidation({
+        isValidating: false,
+        isValid: false,
+        discount: null,
+        error: 'Failed to validate coupon code',
+      });
+    }
+  };
+
+  // Clear coupon code
+  const clearCouponCode = () => {
+    setCouponCode('');
+    setCouponValidation({
+      isValidating: false,
+      isValid: false,
+      discount: null,
+      error: null,
+    });
   };
 
   // Downgrade to Free function
@@ -163,8 +259,6 @@ export default function Dashboard() {
       alert('Failed to downgrade. Please try again.');
     }
   };
-
-
 
   // Start downgrade process
   const initiateDowngrade = () => {
@@ -2384,11 +2478,90 @@ fetch('${window.location.origin}/api/upload', {
                         Basic replication only
                       </div>
                     </div>
+                    {/* Coupon Code Section */}
+                    <div className="mt-6 space-y-3">
+                      <div className="flex space-x-2">
+                        <input
+                          type="text"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value)}
+                          placeholder="Enter coupon code (optional)"
+                          className="flex-1 px-3 py-2 bg-zinc-800/50 border border-zinc-700 rounded-md text-white placeholder-zinc-500 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-600 focus:border-zinc-600"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              validateCouponCode();
+                            }
+                          }}
+                        />
+                        <button
+                          onClick={validateCouponCode}
+                          disabled={!couponCode.trim() || couponValidation.isValidating}
+                          className="px-3 py-2 bg-zinc-700 text-zinc-300 border border-zinc-600 rounded-md hover:bg-zinc-600 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {couponValidation.isValidating ? (
+                            <div className="w-4 h-4 border-2 border-zinc-500 border-t-white animate-spin rounded-full"></div>
+                          ) : (
+                            'Apply'
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Coupon Validation Results */}
+                      {couponValidation.error && (
+                        <div className="text-red-400 text-xs flex items-center">
+                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          {couponValidation.error}
+                        </div>
+                      )}
+
+                      {couponValidation.isValid && couponValidation.discount && (
+                        <div className="bg-green-900/20 border border-green-500/30 rounded-md p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center text-green-400 text-sm font-medium">
+                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              Coupon Applied: {couponCode}
+                            </div>
+                            <button
+                              onClick={clearCouponCode}
+                              className="text-green-400 hover:text-green-300 text-xs"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                          <div className="text-xs text-green-300 space-y-1">
+                            <div className="flex justify-between">
+                              <span>Original Price:</span>
+                              <span className="line-through">{couponValidation.discount.formattedOriginalPrice}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Discount:</span>
+                              <span>-{couponValidation.discount.formattedDiscountAmount}</span>
+                            </div>
+                            <div className="flex justify-between font-medium border-t border-green-500/20 pt-1">
+                              <span>Final Price:</span>
+                              <span>{couponValidation.discount.formattedFinalPrice}</span>
+                            </div>
+                            {couponValidation.discount.duration && (
+                              <div className="text-green-400/80 text-xs mt-1">
+                                Duration: {couponValidation.discount.duration === 'once' ? 'First payment only' : 
+                                          couponValidation.discount.duration === 'forever' ? 'Forever' :
+                                          `${couponValidation.discount.durationInMonths} month(s)`}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     <button 
                       onClick={handleUpgradeToPro}
-                      className="w-full mt-6 px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm"
+                      className="w-full mt-4 px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm"
                     >
-                      Upgrade to Pro
+                      {couponValidation.isValid ? `Upgrade to Pro (${couponValidation.discount?.formattedFinalPrice})` : 'Upgrade to Pro'}
                     </button>
                   </div>
                 )}
@@ -2788,7 +2961,7 @@ fetch('${window.location.origin}/api/upload', {
                 <div className="text-center mb-6">
                   <div className="w-16 h-16 bg-red-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                     </svg>
                   </div>
                   <h3 className="text-xl font-semibold text-white mb-2">Downgrade to Free Plan?</h3>

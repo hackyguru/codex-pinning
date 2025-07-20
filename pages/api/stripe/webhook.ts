@@ -170,20 +170,60 @@ export default async function handler(
                 currency: invoice.currency,
                 status: 'failed',
                 plan_type: subData.plan_type,
-                            billing_period_start: safeConvertDate(invoice.period_start),
-            billing_period_end: safeConvertDate(invoice.period_end)
+                billing_period_start: safeConvertDate(invoice.period_start),
+                billing_period_end: safeConvertDate(invoice.period_end)
               });
 
-            // Update subscription status
+            // IMMEDIATELY downgrade user to free plan on payment failure
             await supabaseServer
               .from('subscriptions')
               .update({
+                plan_type: 'free',
                 status: 'past_due',
                 updated_at: new Date().toISOString()
               })
               .eq('stripe_customer_id', customerId);
 
-            console.log(`Payment failed for user ${subData.user_id}`);
+            // Update user plan to free immediately
+            await supabaseServer
+              .from('users')
+              .update({
+                plan_type: 'free',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', subData.user_id);
+
+            console.log(`Payment failed for user ${subData.user_id} - DOWNGRADED TO FREE`);
+          }
+        }
+        break;
+      }
+
+      case 'invoice.payment_action_required': {
+        const invoice = event.data.object as Stripe.Invoice;
+        
+        if ((invoice as any).subscription) {
+          const subscription = await stripe.subscriptions.retrieve((invoice as any).subscription as string);
+          const customerId = subscription.customer as string;
+          
+          // Get user from customer ID
+          const { data: subData } = await supabaseServer
+            .from('subscriptions')
+            .select('user_id, plan_type')
+            .eq('stripe_customer_id', customerId)
+            .single();
+
+          if (subData) {
+            // Update subscription status to incomplete (but don't downgrade yet)
+            await supabaseServer
+              .from('subscriptions')
+              .update({
+                status: 'incomplete',
+                updated_at: new Date().toISOString()
+              })
+              .eq('stripe_customer_id', customerId);
+
+            console.log(`Payment action required for user ${subData.user_id} - marked as incomplete`);
           }
         }
         break;

@@ -13,6 +13,7 @@
     "@privy-io/server-auth": "^1.28.4",
     "@stripe/stripe-js": "^7.5.0",
     "@supabase/supabase-js": "^2.51.0",
+    "autoprefixer": "^10.4.21",
     "formidable": "^3.5.4",
     "next": "15.4.1",
     "react": "19.1.0",
@@ -21,7 +22,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.1.11",
     "@types/formidable": "^3.4.5",
     "@types/node": "^20",
     "@types/react": "^19",
