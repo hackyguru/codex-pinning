@@ -113,6 +113,11 @@ export default function Gateway() {
 
           {/* Right section - Actions */}
           <div className="flex items-center space-x-4">
+          <div className="hidden md:flex items-center">
+                <span className="px-2 py-1 text-xs bg-orange-500/10 text-orange-400 border border-orange-500/30 rounded-md font-medium">
+                  Testnet
+                </span>
+              </div>
             <div className="flex items-center space-x-2">
               <a
                 href='https://docs.thirdstorage.com'
@@ -149,8 +154,7 @@ export default function Gateway() {
         <div className="px-4 sm:px-6">
           <div className="py-4">
             <div className="relative">
-              <h1 className="text-white text-lg font-semibold">Public Codex Gateway</h1>
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white w-48"></div>
+              <h1 className="text-white text-lg font-semibold">Public Gateway</h1>
             </div>
           </div>
         </div>
@@ -191,6 +195,7 @@ export default function Gateway() {
                 </div>
               </div>
             </div>
+                <div className="text-sm text-orange-400 border border-orange-500/30 mt-4  rounded-lg p-4">The public read-only gateway operates without any revenue as a public goods offering. Please expect slower response times and downtimes as the service is not incentivized. Subscribe for an Enterprise plan for a dedicated private gateway.</div>
           </div>
 
           {/* Test Form */}
@@ -299,27 +304,6 @@ export default function Gateway() {
               </div>
             </div>
           )}
-
-          {/* Example CIDs */}
-          <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-white mb-6">Example CIDs</h2>
-            <div className="bg-zinc-800/30 backdrop-blur-sm border border-zinc-700/30 rounded-lg p-4">
-              <p className="text-zinc-400 mb-4">
-                <strong className="text-zinc-300">Note:</strong> These are example CID formats. Replace with actual CIDs from your Codex node.
-              </p>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between bg-zinc-800/50 backdrop-blur-sm border border-zinc-700/50 rounded-lg p-3">
-                  <code className="text-sm text-zinc-300 font-mono">QmYyQSo1c1Ym7orWxLYvCrM2EmxFTANf8wXmmE7DWjhx5N</code>
-                  <button
-                    onClick={() => setCid('QmYyQSo1c1Ym7orWxLYvCrM2EmxFTANf8wXmmE7DWjhx5N')}
-                    className="bg-zinc-700/80 backdrop-blur-sm hover:bg-zinc-600/80 border border-zinc-600/50 text-zinc-300 px-3 py-1 rounded-lg text-xs font-medium transition-all duration-300"
-                  >
-                    Use This
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </main>
     </div>

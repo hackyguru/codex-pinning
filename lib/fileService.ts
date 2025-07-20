@@ -77,6 +77,45 @@ export class FileService {
    */
   static async deleteFile(fileId: string, userId: string): Promise<boolean> {
     try {
+      // First get the file details to retrieve the CID for unpinning
+      const { data: fileData, error: fetchError } = await supabaseServer
+        .from('files')
+        .select('cid, filename')
+        .eq('id', fileId)
+        .eq('user_id', userId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching file for deletion:', fetchError);
+        return false;
+      }
+
+      if (!fileData) {
+        console.error('File not found or access denied');
+        return false;
+      }
+
+      // Attempt to unpin the file from Codex network
+      try {
+        const unpinResponse = await fetch(`${process.env.CODEX_API_URL || 'http://localhost:8080'}/api/codex/v1/data/${fileData.cid}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (!unpinResponse.ok) {
+          console.warn(`Failed to unpin file ${fileData.cid} from Codex network:`, unpinResponse.statusText);
+          // Continue with database deletion even if unpinning fails
+        } else {
+          console.log(`Successfully unpinned file ${fileData.filename} (${fileData.cid}) from Codex network`);
+        }
+      } catch (unpinError) {
+        console.warn(`Error unpinning file ${fileData.cid}:`, unpinError);
+        // Continue with database deletion even if unpinning fails
+      }
+
+      // Delete file record from database
       const { error } = await supabaseServer
         .from('files')
         .delete()
@@ -84,7 +123,7 @@ export class FileService {
         .eq('user_id', userId); // Ensure user can only delete their own files
 
       if (error) {
-        console.error('Error deleting file:', error);
+        console.error('Error deleting file from database:', error);
         return false;
       }
 

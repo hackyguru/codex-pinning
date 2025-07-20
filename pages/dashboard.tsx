@@ -80,6 +80,12 @@ export default function Dashboard() {
   // Downgrade confirmation state
   const [showDowngradeConfirm, setShowDowngradeConfirm] = useState(false);
   const [downgradeStep, setDowngradeStep] = useState(1);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [deleteAccountStep, setDeleteAccountStep] = useState(1);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+  const [allowedDomains, setAllowedDomains] = useState<string[]>([]);
+  const [newDomain, setNewDomain] = useState('');
+  const [isExportingData, setIsExportingData] = useState(false);
 
   // Coupon code state
   const [couponCode, setCouponCode] = useState('');
@@ -391,8 +397,111 @@ export default function Dashboard() {
         const secretsData = await secretsResponse.json();
         setPinningSecrets(secretsData.secrets || []);
       }
+
+      // Load allowed domains
+      const domainsResponse = await fetch('/api/user/allowed-domains', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (domainsResponse.ok) {
+        const domainsData = await domainsResponse.json();
+        setAllowedDomains(domainsData.domains || []);
+      }
     } catch (error) {
       console.error('Error loading user data:', error);
+    }
+  };
+
+  // Add allowed domain
+  const handleAddDomain = async () => {
+    if (!newDomain.trim()) return;
+    
+    try {
+      const accessToken = await getAccessToken();
+      const response = await fetch('/api/user/allowed-domains', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ domain: newDomain.trim() }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAllowedDomains(data.domains);
+        setNewDomain('');
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to add domain: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error adding domain:', error);
+      alert('Failed to add domain');
+    }
+  };
+
+  // Remove allowed domain
+  const handleRemoveDomain = async (domain: string) => {
+    try {
+      const accessToken = await getAccessToken();
+      const response = await fetch('/api/user/allowed-domains', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ domain }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAllowedDomains(data.domains);
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to remove domain: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error removing domain:', error);
+      alert('Failed to remove domain');
+    }
+  };
+
+  // Export user data
+  const handleExportData = async () => {
+    setIsExportingData(true);
+    try {
+      const accessToken = await getAccessToken();
+      const response = await fetch('/api/user/export-data', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `thirdstorage-data-export-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to export data: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error exporting data:', error);
+      alert('Failed to export data');
+    } finally {
+      setIsExportingData(false);
     }
   };
 
@@ -2948,6 +3057,128 @@ fetch('${window.location.origin}/api/upload', {
                 </div>
               </div>
             </div>
+
+            {/* API Access Control */}
+            <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">API Access Control</h3>
+              <p className="text-zinc-400 mb-6">
+                Restrict API access to specific domains. Only requests from these domains will be allowed.
+              </p>
+              
+              <div className="space-y-4">
+                {/* Add new domain */}
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={newDomain}
+                    onChange={(e) => setNewDomain(e.target.value)}
+                    placeholder="example.com"
+                    className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddDomain()}
+                  />
+                  <button
+                    onClick={handleAddDomain}
+                    disabled={!newDomain.trim()}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white rounded-md transition-colors font-medium"
+                  >
+                    Add Domain
+                  </button>
+                </div>
+
+                {/* Current allowed domains */}
+                {allowedDomains.length > 0 ? (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-zinc-300">Allowed Domains:</h4>
+                    {allowedDomains.map((domain) => (
+                      <div key={domain} className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-md">
+                        <div className="flex items-center">
+                          <svg className="w-4 h-4 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-white">{domain}</span>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveDomain(domain)}
+                          className="p-1 text-zinc-400 hover:text-red-400 transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-zinc-400">
+                    <svg className="w-8 h-8 mx-auto mb-2 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v2m0-2h2m-2 0h-2m9-5a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm">No domain restrictions active</p>
+                    <p className="text-xs text-zinc-500">API access allowed from all domains</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Data Export */}
+            <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">Data Export</h3>
+              <p className="text-zinc-400 mb-6">
+                Download all your data including file CID mappings, metadata, and account information.
+              </p>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-zinc-800/30 rounded-lg border border-zinc-700/50">
+                  <div>
+                    <h4 className="text-white font-medium">Complete Data Export</h4>
+                    <p className="text-sm text-zinc-400">JSON file containing all your files with CIDs and metadata</p>
+                  </div>
+                  <button
+                    onClick={handleExportData}
+                    disabled={isExportingData}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white rounded-md transition-colors font-medium flex items-center"
+                  >
+                    {isExportingData ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Exporting...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Download Data
+                      </>
+                    )}
+                  </button>
+                </div>
+                
+                <div className="text-xs text-zinc-500 space-y-1">
+                  <p>• File names, CIDs, upload dates, and sizes</p>
+                  <p>• Pinning secret information (names and scopes only)</p>
+                  <p>• Account settings and preferences</p>
+                  <p>• Usage statistics and billing history</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Danger Zone */}
+            <div className="bg-red-900/20 backdrop-blur-sm border border-red-800/50 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-red-400 mb-4">Danger Zone</h3>
+              <p className="text-zinc-300 mb-6">
+                Once you delete your account, there is no going back. Please be certain.
+              </p>
+              <button
+                onClick={() => setShowDeleteAccountModal(true)}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors font-medium"
+              >
+                Delete Account
+              </button>
+            </div>
           </div>
         )}
       </main>
@@ -3032,6 +3263,140 @@ fetch('${window.location.origin}/api/upload', {
                     className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
                   >
                     Yes, Downgrade Now
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteAccountModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-red-700/50 rounded-lg p-6 max-w-md w-full">
+            {deleteAccountStep === 1 ? (
+              <>
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-red-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-semibold text-white mb-2">Delete Account?</h3>
+                  <p className="text-zinc-400">
+                    This will permanently delete your account and all associated data. This action cannot be undone.
+                  </p>
+                </div>
+                
+                <div className="space-y-2 mb-6">
+                  <div className="flex items-center text-zinc-300">
+                    <svg className="w-4 h-4 mr-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    All your uploaded files will be deleted
+                  </div>
+                  <div className="flex items-center text-zinc-300">
+                    <svg className="w-4 h-4 mr-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    All pinning secrets will be revoked
+                  </div>
+                  <div className="flex items-center text-zinc-300">
+                    <svg className="w-4 h-4 mr-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Your subscription will be cancelled
+                  </div>
+                  <div className="flex items-center text-zinc-300">
+                    <svg className="w-4 h-4 mr-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    All account data will be permanently lost
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowDeleteAccountModal(false);
+                      setDeleteAccountStep(1);
+                    }}
+                    className="flex-1 px-4 py-2 bg-zinc-800 text-zinc-300 rounded-md hover:bg-zinc-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => setDeleteAccountStep(2)}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-red-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-semibold text-white mb-2">Final Confirmation</h3>
+                  <p className="text-zinc-400 mb-4">
+                    Type <strong className="text-white">DELETE ACCOUNT</strong> to confirm account deletion.
+                  </p>
+                </div>
+
+                <div className="mb-6">
+                  <input
+                    type="text"
+                    value={deleteConfirmationText}
+                    onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                    placeholder="Type DELETE ACCOUNT"
+                    className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white placeholder-zinc-500 focus:outline-none focus:border-red-500"
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setDeleteAccountStep(1)}
+                    className="flex-1 px-4 py-2 bg-zinc-800 text-zinc-300 rounded-md hover:bg-zinc-700 transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (deleteConfirmationText === 'DELETE ACCOUNT') {
+                        try {
+                          const accessToken = await getAccessToken();
+                          const response = await fetch('/api/user/delete-account', {
+                            method: 'DELETE',
+                            headers: {
+                              'Authorization': `Bearer ${accessToken}`,
+                            },
+                          });
+
+                                                     if (response.ok) {
+                             // Account deleted successfully, log out user
+                             logout();
+                             router.push('/');
+                           } else {
+                             // Handle error
+                             const errorData = await response.json().catch(() => ({}));
+                             console.error('Failed to delete account:', response.status, response.statusText);
+                             console.error('Error details:', errorData);
+                             alert(`Failed to delete account: ${errorData.details || errorData.error || response.statusText}`);
+                           }
+                        } catch (error) {
+                          console.error('Error deleting account:', error);
+                        }
+                      }
+                    }}
+                    disabled={deleteConfirmationText !== 'DELETE ACCOUNT'}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Delete My Account
                   </button>
                 </div>
               </>

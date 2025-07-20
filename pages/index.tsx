@@ -597,11 +597,27 @@ export default function Home() {
                           </div>
                           <div>
                             <div className="flex justify-between text-sm mb-2">
-                              <span className="text-zinc-400">API Requests</span>
-                              <span className="text-white">1,247 / Unlimited</span>
+                              <span className="text-zinc-400">Pay-as-you-go storage usage</span>
+                              <span className="text-white">2.3 GB / $0.046</span>
                             </div>
                             <div className="w-full bg-zinc-800/50 rounded-full h-2">
-                              <div className="h-2 bg-green-400 rounded-full" style={{ width: '15%' }}></div>
+                              <div className="h-2 bg-blue-400 rounded-full" style={{ width: '23%' }}></div>
+                            </div>
+                            <div className="flex justify-between text-xs text-zinc-500 mt-1">
+                              <span>$0.02 per GB</span>
+                              <span>Est. $0.046 this month</span>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex justify-between text-sm mb-2">
+                              <span className="text-zinc-400">Private egress</span>
+                              <span className="text-zinc-500 text-xs">Coming soon</span>
+                            </div>
+                            <div className="w-full bg-zinc-800/50 rounded-full h-2">
+                              <div className="h-2 bg-zinc-700 rounded-full" style={{ width: '0%' }}></div>
+                            </div>
+                            <div className="text-xs text-zinc-500 mt-1">
+                              We're working on implementing usage tracking for private egress
                             </div>
                           </div>
                         </div>
