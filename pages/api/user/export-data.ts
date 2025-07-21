@@ -58,17 +58,7 @@ const exportDataHandler = withAuth(async (req, res) => {
       console.warn('Could not fetch domain restrictions:', domainsError);
     }
 
-    // Get billing history (if exists)
-    const { data: billingData, error: billingError } = await supabaseServer
-      .from('billing_history')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    // Note: Don't fail if billing history doesn't exist or has errors
-    if (billingError) {
-      console.warn('Could not fetch billing history:', billingError);
-    }
+    // Billing history is now retrieved from Stripe directly when needed
 
     // Prepare export notes about any missing data
     const exportNotes = [];
@@ -78,9 +68,7 @@ const exportDataHandler = withAuth(async (req, res) => {
     if (domainsError) {
       exportNotes.push('API domain restrictions could not be included due to database error');
     }
-    if (billingError) {
-      exportNotes.push('Billing history data could not be included due to database error');
-    }
+
 
     // Prepare export data
     const exportData = {
@@ -126,15 +114,7 @@ const exportDataHandler = withAuth(async (req, res) => {
         domain: domain.domain,
         created_at: domain.created_at
       })) : [],
-      billing_history: billingData?.map(bill => ({
-        id: bill.id,
-        amount: bill.amount,
-        currency: bill.currency,
-        description: bill.description,
-        status: bill.status,
-        created_at: bill.created_at,
-        metadata: bill.metadata
-      })) || [],
+      billing_history: [], // Now retrieved from Stripe directly when needed
       statistics: {
         total_files: filesData?.length || 0,
         total_storage_used: filesData?.reduce((total, file) => total + (file.size || 0), 0) || 0,

@@ -71,23 +71,7 @@ const cancelSubscriptionHandler = withAuth(async (req, res) => {
       return res.status(500).json({ error: 'Failed to update subscription' });
     }
 
-    // Add billing history record
-    const { error: billingError } = await supabaseServer
-      .from('billing_history')
-      .insert({
-        user_id: userId,
-        subscription_id: subscription.id,
-        amount_cents: 0,
-        currency: 'usd',
-        status: 'paid',
-        plan_type: 'free',
-        created_at: new Date().toISOString()
-      });
-
-    if (billingError) {
-      console.error('Error creating billing history:', billingError);
-      // Don't return error here as the main operation succeeded
-    }
+    // Billing history is now handled by Stripe invoices only
 
     console.log(`User ${userId} successfully downgraded to free plan`);
 

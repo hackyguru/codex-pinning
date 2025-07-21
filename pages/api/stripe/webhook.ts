@@ -142,26 +142,7 @@ export default async function handler(
             .single();
 
           if (subData) {
-            // Record billing history
-            const { error: billingError } = await supabaseServer
-              .from('billing_history')
-              .insert({
-                user_id: subData.user_id,
-                stripe_invoice_id: invoice.id,
-                amount_cents: invoice.amount_paid,
-                currency: invoice.currency,
-                status: 'paid',
-                plan_type: subData.plan_type,
-                billing_period_start: safeConvertDate(invoice.period_start),
-                billing_period_end: safeConvertDate(invoice.period_end),
-                paid_at: safeConvertDate(invoice.status_transitions?.paid_at)
-              });
-
-            if (billingError) {
-              console.error(`❌ Failed to record billing history for ${subData.user_id}:`, billingError);
-            } else {
-              console.log(`💰 Payment recorded for user ${subData.user_id}: $${invoice.amount_paid / 100}`);
-            }
+            console.log(`💰 Payment successful for user ${subData.user_id}: $${invoice.amount_paid / 100}`);
           } else {
             console.warn(`⚠️  No subscription found for customer ${customerId}`);
           }
@@ -185,20 +166,6 @@ export default async function handler(
             .single();
 
           if (subData) {
-            // Record failed payment
-            await supabaseServer
-              .from('billing_history')
-              .insert({
-                user_id: subData.user_id,
-                stripe_invoice_id: invoice.id,
-                amount_cents: invoice.amount_due,
-                currency: invoice.currency,
-                status: 'failed',
-                plan_type: subData.plan_type,
-                billing_period_start: safeConvertDate(invoice.period_start),
-                billing_period_end: safeConvertDate(invoice.period_end)
-              });
-
             // IMMEDIATELY downgrade user to free plan on payment failure
             await supabaseServer
               .from('subscriptions')

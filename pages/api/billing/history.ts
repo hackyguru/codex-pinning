@@ -104,63 +104,8 @@ const billingHistoryHandler = withAuth(async (req, res) => {
         });
     }
 
-    // Fetch local billing history from Supabase
-    const { data: localBillingHistory } = await supabaseServer
-      .from('billing_history')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    // Transform local billing history into our format
-    const localHistory: BillingHistoryItem[] = (localBillingHistory || []).map((record) => {
-      // Format amount
-      const amount = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: record.currency.toUpperCase(),
-      }).format(record.amount_cents / 100);
-
-      // Format date
-      const date = new Date(record.created_at).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
-
-      // Format period for downgrades/cancellations
-      let period = date;
-      if (record.billing_period_start && record.billing_period_end) {
-        const startDate = new Date(record.billing_period_start);
-        const endDate = new Date(record.billing_period_end);
-        
-        const startMonth = startDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-        const endMonth = endDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-        
-        if (startMonth === endMonth) {
-          period = startMonth;
-        } else {
-          period = `${startMonth} - ${endMonth}`;
-        }
-      }
-
-      // Format plan name
-      const planName = record.plan_type.charAt(0).toUpperCase() + record.plan_type.slice(1) + ' Plan';
-
-      return {
-        id: record.id,
-        date,
-        amount,
-        status: record.status,
-        plan: planName,
-        period,
-        invoice_url: undefined,
-        invoice_pdf: undefined,
-      };
-    });
-
-    // Combine and sort all billing history
-    const allHistory = [...stripeInvoices, ...localHistory];
-    allHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // Return only Stripe invoices (single source of truth)
+    const allHistory = stripeInvoices;
 
     res.status(200).json({ billingHistory: allHistory });
   } catch (error) {
