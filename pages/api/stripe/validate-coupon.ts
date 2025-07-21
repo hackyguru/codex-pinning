@@ -1,4 +1,3 @@
-import { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
 import { withAuth } from '../../../lib/auth';
 
@@ -65,10 +64,10 @@ const validateCouponHandler = withAuth(async (req, res) => {
       formattedFinalPrice: `$${(finalPrice / 100).toFixed(2)}`,
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error validating coupon:', error);
     
-    if (error.code === 'resource_missing') {
+    if (error instanceof Error && error.message.includes('resource_missing')) {
       return res.status(400).json({ 
         error: 'Coupon code not found',
         valid: false 

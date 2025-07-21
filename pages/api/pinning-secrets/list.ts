@@ -1,4 +1,3 @@
-import { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth } from '../../../lib/auth';
 import { PinningSecretService } from '../../../lib/pinningSecretService';
 

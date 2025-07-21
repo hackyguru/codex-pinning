@@ -1,4 +1,3 @@
-import { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
 import { supabaseServer } from '../../../lib/supabase-server';
 import { withAuth } from '../../../lib/auth';
@@ -28,7 +27,7 @@ const billingHistoryHandler = withAuth(async (req, res) => {
     const userId = req.user.id;
 
     // Get user's subscription to find Stripe customer ID
-    const { data: subscription, error: subError } = await supabaseServer
+    const { data: subscription } = await supabaseServer
       .from('subscriptions')
       .select('stripe_customer_id')
       .eq('user_id', userId)
@@ -145,7 +144,7 @@ const billingHistoryHandler = withAuth(async (req, res) => {
       }
 
       // Format plan name
-      let planName = record.plan_type.charAt(0).toUpperCase() + record.plan_type.slice(1) + ' Plan';
+      const planName = record.plan_type.charAt(0).toUpperCase() + record.plan_type.slice(1) + ' Plan';
 
       return {
         id: record.id,

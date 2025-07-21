@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { supabase } from '../lib/supabase';
+import Link from 'next/link';
 
 interface SystemCheck {
   name: string;
@@ -53,7 +54,7 @@ export default function StatusPage() {
   const checkSupabaseHealth = async (): Promise<{ status: 'healthy' | 'unhealthy', responseTime: number, error?: string }> => {
     const startTime = Date.now();
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('users')
         .select('id')
         .limit(1);
@@ -230,7 +231,7 @@ export default function StatusPage() {
   useEffect(() => {
     setIsClient(true);
     runAllHealthChecks();
-  }, []);
+  }, [runAllHealthChecks]);
 
   // Helper function to format time consistently
   const formatTime = (date: Date): string => {
@@ -286,12 +287,12 @@ export default function StatusPage() {
                 <span className="text-zinc-400">Status</span>
               </div>
             </div>
-            <a
+            <Link
               href="/"
               className="text-zinc-400 hover:text-white transition-colors text-sm font-medium"
             >
               ← Back to Home
-            </a>
+            </Link>
           </div>
         </div>
       </header>

@@ -1,4 +1,3 @@
-import { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
 import { supabaseServer } from '../../../lib/supabase-server';
 import { UserService } from '../../../lib/userService';
@@ -66,8 +65,10 @@ const createCheckoutHandler = withAuth(async (req, res) => {
         } else {
           return res.status(400).json({ error: 'Invalid or expired coupon code' });
         }
-      } catch (couponError) {
-        return res.status(400).json({ error: 'Invalid coupon code' });
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          return res.status(400).json({ error: 'Invalid coupon code' });
+        }
       }
     }
 
@@ -88,7 +89,7 @@ const createCheckoutHandler = withAuth(async (req, res) => {
     const proPlan = getPlan('pro');
 
     // Prepare checkout session configuration
-    const sessionConfig: any = {
+    const sessionConfig: Record<string, unknown> = {
       customer: customer.id,
       mode: 'subscription',
       payment_method_types: ['card'],
@@ -141,15 +142,17 @@ const createCheckoutHandler = withAuth(async (req, res) => {
       couponApplied: validatedCoupon ? true : false,
       couponCode: validatedCoupon
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating checkout session:', error);
     
     // Provide more specific error messages
-    if (error.type === 'StripeInvalidRequestError') {
-      return res.status(400).json({ 
-        error: 'Invalid checkout configuration. Please try again or contact support.',
-        details: error.message 
-      });
+    if (error instanceof Error) {
+      if (error.type === 'StripeInvalidRequestError') {
+        return res.status(400).json({ 
+          error: 'Invalid checkout configuration. Please try again or contact support.',
+          details: error.message 
+        });
+      }
     }
     
     res.status(500).json({ error: 'Failed to create checkout session. Please try again.' });

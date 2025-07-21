@@ -1,4 +1,3 @@
-import { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
 import { supabaseServer } from '../../../lib/supabase-server';
 import { withAuth } from '../../../lib/auth';

@@ -115,7 +115,7 @@ export class PinningSecretService {
     try {
       const { fullSecret, prefix, hash } = this.generateSecret();
 
-      const insertData: any = {
+      const insertData: unknown = {
         user_id: userId,
         name,
         secret_prefix: prefix,
@@ -177,8 +177,8 @@ export class PinningSecretService {
         thisMonth.setHours(0, 0, 0, 0);
 
         const usageThisMonth = secret.pinning_secret_usage_daily
-          ?.filter((usage: any) => new Date(usage.usage_date) >= thisMonth)
-          .reduce((total: number, usage: any) => total + (usage.bytes_transferred || 0), 0) || 0;
+          ?.filter((usage: { usage_date: string }) => new Date(usage.usage_date) >= thisMonth)
+          .reduce((total: number, usage: { bytes_transferred?: number }) => total + (usage.bytes_transferred || 0), 0) || 0;
 
         return {
           ...secret,

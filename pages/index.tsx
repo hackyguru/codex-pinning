@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { getAvailablePlans } from '../lib/plans';
+import Link from 'next/link';
 
 export default function Home() {
   const router = useRouter();
@@ -19,7 +20,7 @@ export default function Home() {
   const checkSupabaseHealth = async (): Promise<boolean> => {
     try {
       // Try to read from a simple table or run a basic query
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('users')
         .select('id')
         .limit(1);
@@ -992,12 +993,7 @@ export default function Home() {
                 >
                   Documentation
                 </a>
-                <a
-                  href="/status"
-                  className="text-zinc-400 hover:text-white transition-colors text-sm font-medium"
-                >
-                  Status
-                </a>
+                <Link href="/status" className="text-zinc-400 hover:text-white transition-colors text-sm font-medium">Status</Link>
                 <div className="flex items-center space-x-2">
                   {systemStatus.checking ? (
                     <>

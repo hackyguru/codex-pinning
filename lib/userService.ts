@@ -52,7 +52,7 @@ export class UserService {
   ): Promise<UserRecord | null> {
     try {
       // First, try to get existing user
-      const { data: existingUser, error: fetchError } = await supabaseServer
+      const { data: existingUser } = await supabaseServer
         .from('users')
         .select('*')
         .eq('id', userId)

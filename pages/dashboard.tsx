@@ -1,13 +1,10 @@
 import { useRouter } from 'next/router';
 import { usePrivy } from '@privy-io/react-auth';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { UserStats } from '../lib/userService';
 import { FileWithFormatted } from '../lib/fileService';
 import Image from 'next/image';
-import { loadStripe } from '@stripe/stripe-js';
 import { getPlan, type PlanType } from '../lib/plans';
-
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 interface UploadedFile {
   id: string;
@@ -32,6 +29,18 @@ interface PinningSecret {
   isActive: boolean;
   lastUsed: string;
   createdAt: string;
+}
+
+// Add BillingHistoryItem type
+interface BillingHistoryItem {
+  id: string;
+  plan: string;
+  period: string;
+  date: string;
+  amount: string;
+  status: string;
+  invoice_url?: string;
+  invoice_pdf?: string;
 }
 
 export default function Dashboard() {
@@ -69,14 +78,6 @@ export default function Dashboard() {
   const [selectedNetwork, setSelectedNetwork] = useState<'ipfs' | 'arweave' | 'storj'>('ipfs');
   const [migrationCid, setMigrationCid] = useState('');
   const [isMigrating, setIsMigrating] = useState(false);
-
-  // Usage tracking state - simplified since we're not tracking usage yet
-  const [monthlyUsage, setMonthlyUsage] = useState({
-    privateEgress: {
-      used: 0,
-      limit: 1000,
-    }
-  });
 
   // Downgrade confirmation state
   const [showDowngradeConfirm, setShowDowngradeConfirm] = useState(false);
@@ -289,49 +290,45 @@ export default function Dashboard() {
   };
 
   // Dynamic billing history data
-  const [billingHistory, setBillingHistory] = useState<any[]>([]);
+  const [billingHistory, setBillingHistory] = useState<BillingHistoryItem[]>([]);
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
 
   // Load billing history from API
-  const loadBillingHistory = async () => {
-    if (!user?.id || userStats?.planType === 'free') {
-      setBillingHistory([]);
-      return;
-    }
-
+  const loadBillingHistory = useCallback(async () => {
     setBillingLoading(true);
     setBillingError(null);
 
     try {
-      // Get auth token from Privy
+      // Use user?.id, userStats?.planType, getAccessToken as dependencies
+      if (!user?.id || userStats?.planType === 'free') {
+        setBillingHistory([]);
+        setBillingLoading(false);
+        return;
+      }
       const authToken = await getAccessToken();
-      
       const response = await fetch('/api/billing/history', {
         headers: {
           'Authorization': `Bearer ${authToken}`,
         },
       });
-      
       if (!response.ok) {
         throw new Error('Failed to fetch billing history');
       }
-
       const data = await response.json();
       setBillingHistory(data.billingHistory || []);
     } catch (error) {
-      console.error('Error loading billing history:', error);
       setBillingError('Failed to load billing history');
       setBillingHistory([]);
     } finally {
       setBillingLoading(false);
     }
-  };
+  }, [user?.id, userStats?.planType, getAccessToken]);
 
   // Load billing history when user or plan changes
   useEffect(() => {
     loadBillingHistory();
-  }, [user?.id, userStats?.planType]);
+  }, [loadBillingHistory]);
 
   // Utility functions
   const getFileIcon = (contentType: string) => {
@@ -645,7 +642,7 @@ export default function Dashboard() {
         loadUserData();
       }
     }
-  }, [ready, authenticated, router, user]);
+  }, [ready, authenticated, router, user, loadUserData]);
 
   // Keyboard shortcut for search
   useEffect(() => {

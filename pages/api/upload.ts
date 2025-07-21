@@ -1,4 +1,4 @@
-import { IncomingForm, Fields, Files, File } from 'formidable';
+import { IncomingForm, File } from 'formidable';
 import fs from 'fs';
 import path from 'path';
 import { withAuth } from '../../lib/auth';
@@ -159,7 +159,7 @@ const uploadHandler = withAuth(async (req, res) => {
       }
     });
 
-    const [_fields, files] = await form.parse(req);
+    const [, files] = await form.parse(req);
 
     // Get the uploaded file
     uploadedFile = Array.isArray(files.file) ? files.file[0] : files.file;
