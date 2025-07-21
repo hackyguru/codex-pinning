@@ -796,7 +796,7 @@ export default function Home() {
                   </div>
                   <h3 className="text-xl font-bold text-white mb-4">Caters Your Dreams</h3>
                   <p className="text-zinc-400 leading-relaxed mb-4">
-                    From AI to gaming - from Kilobytes to Terabytes, we've got you covered
+                    From AI to gaming - from Kilobytes to Terabytes, we&apos;ve got you covered
                   </p>
                                      <div className="space-y-2 transition-all duration-500">
                      <div className="flex justify-between text-xs">

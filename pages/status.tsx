@@ -115,7 +115,7 @@ export default function StatusPage() {
     }
   }, []);
 
-  const checkGatewayHealth = async (): Promise<{ status: 'healthy' | 'unhealthy', responseTime: number, error?: string }> => {
+  const checkGatewayHealth = useCallback(async (): Promise<{ status: 'healthy' | 'unhealthy', responseTime: number, error?: string }> => {
     const startTime = Date.now();
     try {
       const controller = new AbortController();
@@ -146,9 +146,9 @@ export default function StatusPage() {
         error: error instanceof Error ? error.message : 'Gateway unreachable' 
       };
     }
-  };
+  }, []);
 
-  const checkAPIHealth = async (): Promise<{ status: 'healthy' | 'unhealthy', responseTime: number, error?: string }> => {
+  const checkAPIHealth = useCallback(async (): Promise<{ status: 'healthy' | 'unhealthy', responseTime: number, error?: string }> => {
     const startTime = Date.now();
     try {
       const controller = new AbortController();
@@ -179,7 +179,7 @@ export default function StatusPage() {
         error: error instanceof Error ? error.message : 'API unreachable' 
       };
     }
-  };
+  }, []);
 
   const runAllHealthChecks = useCallback(async () => {
     setIsRefreshing(true);

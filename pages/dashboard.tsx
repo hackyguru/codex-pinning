@@ -781,7 +781,7 @@ export default function Dashboard() {
                 : f
             ));
           }
-        } catch (error) {
+        } catch {
           setUploadedFiles(prev => prev.map(f => 
             f.id === uploadId 
               ? { ...f, status: 'error' as const, error: 'Network error' }
@@ -900,7 +900,7 @@ export default function Dashboard() {
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorMessage;
-        } catch (e) {
+        } catch {
           errorMessage = response.statusText || 'Unknown error';
         }
 
@@ -1417,9 +1417,9 @@ fetch('${window.location.origin}/api/upload', {
                         {selectedCodeExample === 'curl' && (
                           <div className="space-y-1">
                             <div className="text-zinc-500"># Upload a file using cURL</div>
-                            <div><span className="text-zinc-400">curl</span> <span className="text-white">-X POST</span> <span className="text-zinc-300">"{window.location.origin}/api/upload"</span> <span className="text-white">\</span></div>
-                            <div className="ml-2"><span className="text-white">-H</span> <span className="text-zinc-300">"Authorization: Bearer YOUR_PINNING_SECRET"</span> <span className="text-white">\</span></div>
-                            <div className="ml-2"><span className="text-white">-F</span> <span className="text-zinc-300">"file=@/path/to/your/file.jpg"</span></div>
+                            <div><span className="text-zinc-400">curl</span> <span className="text-white">-X POST</span> <span className="text-zinc-300">&quot;{window.location.origin}/api/upload&quot;</span> <span className="text-white">\</span></div>
+                            <div className="ml-2"><span className="text-white">-H</span> <span className="text-zinc-300">&quot;Authorization: Bearer YOUR_PINNING_SECRET&quot;</span> <span className="text-white">\</span></div>
+                            <div className="ml-2"><span className="text-white">-F</span> <span className="text-zinc-300">&quot;file=@/path/to/your/file.jpg&quot;</span></div>
                           </div>
                         )}
                         
@@ -1431,7 +1431,7 @@ fetch('${window.location.origin}/api/upload', {
                             <div><span className="text-yellow-400">fetch</span><span className="text-zinc-400">(</span><span className="text-green-400">'{window.location.origin}/api/upload'</span><span className="text-zinc-400">,</span> <span className="text-zinc-400">{'{'}</span></div>
                             <div className="ml-2"><span className="text-white">method</span><span className="text-zinc-400">:</span> <span className="text-green-400">'POST'</span><span className="text-zinc-400">,</span></div>
                             <div className="ml-2"><span className="text-white">headers</span><span className="text-zinc-400">:</span> <span className="text-zinc-400">{'{'}</span></div>
-                            <div className="ml-4"><span className="text-green-400">'Authorization'</span><span className="text-zinc-400">:</span> <span className="text-green-400">'Bearer YOUR_PINNING_SECRET'</span></div>
+                            <div className="ml-4"><span className="text-green-400">&apos;Authorization&apos;</span><span className="text-zinc-400">:</span> <span className="text-green-400">&apos;Bearer YOUR_PINNING_SECRET&apos;</span></div>
                             <div className="ml-2"><span className="text-zinc-400">{'}'}</span><span className="text-zinc-400">,</span></div>
                             <div className="ml-2"><span className="text-white">body</span><span className="text-zinc-400">:</span> <span className="text-white">formData</span></div>
                             <div><span className="text-zinc-400">{'}'}</span><span className="text-zinc-400">)</span></div>
@@ -1444,9 +1444,9 @@ fetch('${window.location.origin}/api/upload', {
                           <div className="space-y-1">
                             <div><span className="text-blue-400">import</span> <span className="text-white">requests</span></div>
                             <div className="mt-2"></div>
-                            <div><span className="text-white">url</span> <span className="text-zinc-400">=</span> <span className="text-green-400">"{window.location.origin}/api/upload"</span></div>
-                            <div><span className="text-white">headers</span> <span className="text-zinc-400">=</span> <span className="text-zinc-400">{'{'}</span><span className="text-green-400">"Authorization"</span><span className="text-zinc-400">:</span> <span className="text-green-400">"Bearer YOUR_PINNING_SECRET"</span><span className="text-zinc-400">{'}'}</span></div>
-                            <div><span className="text-white">files</span> <span className="text-zinc-400">=</span> <span className="text-zinc-400">{'{'}</span><span className="text-green-400">"file"</span><span className="text-zinc-400">:</span> <span className="text-yellow-400">open</span><span className="text-zinc-400">(</span><span className="text-green-400">"/path/to/your/file.jpg"</span><span className="text-zinc-400">,</span> <span className="text-green-400">"rb"</span><span className="text-zinc-400">)</span><span className="text-zinc-400">{'}'}</span></div>
+                            <div><span className="text-white">url</span> <span className="text-zinc-400">=</span> <span className="text-green-400">&quot;{window.location.origin}/api/upload&quot;</span></div>
+                            <div><span className="text-white">headers</span> <span className="text-zinc-400">=</span> <span className="text-zinc-400">{'{'}</span><span className="text-green-400">&quot;Authorization&quot;</span><span className="text-zinc-400">:</span> <span className="text-green-400">&quot;Bearer YOUR_PINNING_SECRET&quot;</span><span className="text-zinc-400">{'}'}</span></div>
+                            <div><span className="text-white">files</span> <span className="text-zinc-400">=</span> <span className="text-zinc-400">{'{'}</span><span className="text-green-400">&quot;file&quot;</span><span className="text-zinc-400">:</span> <span className="text-yellow-400">open</span><span className="text-zinc-400">(</span><span className="text-green-400">&quot;/path/to/your/file.jpg&quot;</span><span className="text-zinc-400">,</span> <span className="text-green-400">&quot;rb&quot;</span><span className="text-zinc-400">)</span><span className="text-zinc-400">{'}'}</span></div>
                             <div className="mt-2"></div>
                             <div><span className="text-white">response</span> <span className="text-zinc-400">=</span> <span className="text-white">requests</span><span className="text-zinc-400">.</span><span className="text-yellow-400">post</span><span className="text-zinc-400">(</span><span className="text-white">url</span><span className="text-zinc-400">,</span> <span className="text-white">headers</span><span className="text-zinc-400">=</span><span className="text-white">headers</span><span className="text-zinc-400">,</span> <span className="text-white">files</span><span className="text-zinc-400">=</span><span className="text-white">files</span><span className="text-zinc-400">)</span></div>
                             <div><span className="text-yellow-400">print</span><span className="text-zinc-400">(</span><span className="text-white">response</span><span className="text-zinc-400">.</span><span className="text-yellow-400">json</span><span className="text-zinc-400">())</span></div>
@@ -2359,7 +2359,7 @@ fetch('${window.location.origin}/api/upload', {
                     ].map((network) => (
                       <button
                         key={network.id}
-                        onClick={() => setSelectedNetwork(network.id as any)}
+                        onClick={() => setSelectedNetwork(network.id as 'ipfs' | 'arweave' | 'storj')}
                         className={`p-4 rounded-lg border transition-all duration-200 text-left ${
                           selectedNetwork === network.id
                             ? 'bg-white/10 border-white/30 ring-1 ring-white/20'
