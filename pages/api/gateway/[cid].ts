@@ -1,5 +1,12 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseServer } from '../../../lib/supabase-server';
+import { 
+  gatewayRateLimiter, 
+  aggressiveRateLimiter, 
+  burstRateLimiter,
+  getClientIP, 
+  detectSuspiciousActivity 
+} from '../../../lib/rateLimiter';
 
 // Helper function to detect if request is from a browser
 const isBrowserRequest = (req: NextApiRequest): boolean => {
@@ -15,6 +22,52 @@ const gatewayHandler = async (req: NextApiRequest, res: NextApiResponse) => {
   // Only allow GET and HEAD requests
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const clientIP = getClientIP(req);
+  const isSuspicious = detectSuspiciousActivity(req);
+
+  // Apply rate limiting based on activity type
+  let rateLimitResult;
+  if (isSuspicious) {
+    // More aggressive rate limiting for suspicious requests
+    rateLimitResult = aggressiveRateLimiter.check(clientIP);
+  } else {
+    // Also check burst rate limiting (short window)
+    const burstResult = burstRateLimiter.check(clientIP);
+    if (!burstResult.allowed) {
+      rateLimitResult = burstResult;
+    } else {
+      // Normal rate limiting
+      rateLimitResult = gatewayRateLimiter.check(clientIP);
+    }
+  }
+
+  // Add rate limit headers
+  res.setHeader('X-RateLimit-Limit', isSuspicious ? 10 : 60);
+  res.setHeader('X-RateLimit-Remaining', rateLimitResult.remaining);
+  res.setHeader('X-RateLimit-Reset', Math.ceil(rateLimitResult.resetTime / 1000));
+
+  if (!rateLimitResult.allowed) {
+    const retryAfter = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000);
+    res.setHeader('Retry-After', retryAfter);
+
+    // Log suspicious activity
+    if (isSuspicious) {
+      console.warn(`Suspicious activity blocked from IP: ${clientIP}, User-Agent: ${req.headers['user-agent']}`);
+    }
+
+    // If it's a browser request, redirect to our nice error page with rate limit info
+    if (isBrowserRequest(req)) {
+      return res.redirect(302, `/gateway/rate-limited`);
+    }
+
+    return res.status(429).json({
+      error: 'Too many requests',
+      message: `Rate limit exceeded. Try again in ${retryAfter} seconds.`,
+      retryAfter,
+      suspicious: isSuspicious
+    });
   }
 
   const { cid } = req.query;
@@ -101,8 +154,14 @@ const gatewayHandler = async (req: NextApiRequest, res: NextApiResponse) => {
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD');
     res.setHeader('Access-Control-Allow-Headers', '*');
+    
+    // Security headers
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     
     if (contentLength) {
       res.setHeader('Content-Length', contentLength);
@@ -116,6 +175,9 @@ const gatewayHandler = async (req: NextApiRequest, res: NextApiResponse) => {
     // Add custom headers for debugging
     res.setHeader('X-Codex-CID', cid);
     res.setHeader('X-Gateway-Type', 'public');
+
+    // Log successful request for monitoring
+    console.log(`Gateway access: CID=${cid}, IP=${clientIP}, Method=${req.method}, UserAgent=${req.headers['user-agent']?.substring(0, 100) || 'unknown'}`);
 
     // For HEAD requests, only send headers
     if (req.method === 'HEAD') {
