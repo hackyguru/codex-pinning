@@ -123,7 +123,7 @@ export const PLANS: Record<PlanType, PlanConfig> = {
       }
     ],
     popular: true,
-    badge: 'Most Popular',
+    badge: 'Coming Soon',
     ctaText: 'Upgrade to Pro',
     stripePriceData: {
       currency: 'usd',

@@ -1100,8 +1100,7 @@ export default function Dashboard() {
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-center">
           <div className="relative">
-            <div className="animate-spin rounded-full h-12 w-12 border-2 border-zinc-600"></div>
-            <div className="animate-spin rounded-full h-12 w-12 border-2 border-white border-t-transparent absolute top-0 left-0"></div>
+            <Image src="/black.svg" alt="Loading" width={48} height={48} className="animate-pulse" />
           </div>
           <p className="mt-4 text-zinc-400">Loading...</p>
         </div>

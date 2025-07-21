@@ -114,7 +114,7 @@ const plans = getAvailablePlans(); // [free, pro, enterprise]
 - **Storage**: 50 MB  
 - **Price**: $10/month
 - **Features**: Enhanced storage, priority support, advanced features
-- **Badge**: "Most Popular"
+- **Badge**: "Coming soon"
 
 ### Enterprise Plan
 - **Storage**: Unlimited

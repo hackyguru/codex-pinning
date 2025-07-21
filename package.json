@@ -13,6 +13,7 @@
     "@privy-io/server-auth": "^1.28.4",
     "@stripe/stripe-js": "^7.5.0",
     "@supabase/supabase-js": "^2.51.0",
+    "@vercel/analytics": "^1.5.0",
     "autoprefixer": "^10.4.21",
     "formidable": "^3.5.4",
     "next": "15.4.1",
