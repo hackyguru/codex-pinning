@@ -2956,19 +2956,6 @@ fetch('${window.location.origin}/api/upload', {
                     </p>
                   </div>
 
-                  {/* Pay as you go usage */}
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-zinc-400">Pay as you go usage</span>
-                      <span className="text-zinc-500 text-xs">Coming soon</span>
-                    </div>
-                    <div className="w-full bg-zinc-800/50 rounded-full h-2">
-                      <div className="h-2 bg-zinc-600 rounded-full transition-all duration-500 w-0"></div>
-                    </div>
-                    <p className="text-xs text-zinc-500 mt-1">
-                      Pay-per-use billing system is being implemented
-                    </p>
-                  </div>
 
                 </div>
               </div>

@@ -5,7 +5,7 @@ import Image from 'next/image';
 
 export default function Gateway() {
   const router = useRouter();
-  const { authenticated, logout } = usePrivy();
+  const { authenticated, logout, ready } = usePrivy();
   const [cid, setCid] = useState('');
   const [testResult, setTestResult] = useState<{
     status: number;
@@ -89,6 +89,18 @@ export default function Gateway() {
     await logout();
     router.push('/');
   };
+
+  // Show loading state while Privy is initializing
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-white border-t-transparent mx-auto mb-4"></div>
+          <p className="text-zinc-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black text-white">

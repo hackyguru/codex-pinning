@@ -125,6 +125,14 @@ export default function Home() {
               </div>
             </div>
             <div className="flex items-center space-x-3 sm:space-x-6">
+            <Link href="/status">
+            <span
+                rel="noopener noreferrer"
+                className="hidden sm:block text-zinc-400 hover:text-white transition-colors text-sm font-medium"
+                >
+                Status
+              </span>
+                </Link>
               <a
                 href="https://docs.thirdstorage.com"
                 target="_blank"
