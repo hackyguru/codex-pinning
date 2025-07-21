@@ -104,7 +104,8 @@ const deleteAccountHandler = withAuth(async (req, res) => {
     console.log('Checking for Stripe subscriptions to cancel...');
     if (process.env.STRIPE_SECRET_KEY) {
       try {
-        const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+        const stripeModule = await import('stripe');
+        const stripe = new stripeModule.default(process.env.STRIPE_SECRET_KEY);
         
         // Get user's Stripe customer ID from the database (if it exists)
         const { data: userData } = await supabaseServer
@@ -123,7 +124,7 @@ const deleteAccountHandler = withAuth(async (req, res) => {
 
           console.log(`Found ${subscriptions.data.length} active subscriptions to cancel`);
           for (const subscription of subscriptions.data) {
-            await stripe.subscriptions.del(subscription.id);
+            await stripe.subscriptions.cancel(subscription.id);
             console.log(`Cancelled subscription: ${subscription.id}`);
           }
         } else {

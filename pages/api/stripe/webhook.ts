@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { supabaseServer } from '../../../lib/supabase-server';
+import { NextApiRequest, NextApiResponse } from 'next';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-06-30.basil',
@@ -14,40 +15,30 @@ export const config = {
 };
 
 export default async function handler(
-  req: unknown,
-  res: unknown
+  req: NextApiRequest,
+  res: NextApiResponse
 ) {
-  if (req === null || req === undefined || typeof req !== 'object' || !('method' in req)) {
-    return res === null || res === undefined || typeof res !== 'object' || !('status' in res)
-      ? res
-      : res.status(400).json({ error: 'Invalid request object' });
-  }
-  const reqObj = req as { method: string };
-  if (reqObj.method !== 'POST') {
-    return res === null || res === undefined || typeof res !== 'object' || !('status' in res)
-      ? res
-      : res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const sig = (req as { headers: { 'stripe-signature': string } }).headers['stripe-signature'];
+  const sig = req.headers['stripe-signature'];
   let event: Stripe.Event;
 
   try {
     // Read the raw body from the request
     const chunks: Buffer[] = [];
-    for await (const chunk of req as unknown as AsyncIterable<string>) {
+    for await (const chunk of req) {
       chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
     }
     const body = Buffer.concat(chunks);
     
     event = stripe.webhooks.constructEvent(body, sig!, endpointSecret);
     console.log(`📡 Webhook received: ${event.type} (${event.id})`);
-  } catch (err: unknown) {
-    const error = err as Stripe.errors.StripeWebhookError;
+  } catch (err) {
+    const error = err as Error;
     console.error('❌ Webhook signature verification failed:', error.message);
-    return res === null || res === undefined || typeof res !== 'object' || !('status' in res)
-      ? res
-      : res.status(400).json({ error: 'Webhook signature verification failed' });
+    return res.status(400).json({ error: 'Webhook signature verification failed' });
   }
 
   try {
@@ -78,12 +69,10 @@ export default async function handler(
               metadata: session.metadata
             });
             // Still return 200 to acknowledge receipt
-            return res === null || res === undefined || typeof res !== 'object' || !('status' in res)
-              ? res
-              : res.status(200).json({ 
-                received: true, 
-                error: 'Missing metadata - manual sync required' 
-              });
+            return res.status(200).json({ 
+              received: true, 
+              error: 'Missing metadata - manual sync required' 
+            });
           }
 
           console.log(`👤 Upgrading user ${userId} to ${planType} plan`);
@@ -95,7 +84,7 @@ export default async function handler(
             try {
               subscription = await stripe.subscriptions.retrieve(session.subscription as string);
               break;
-            } catch (error: unknown) {
+            } catch (error) {
               console.warn(`⚠️  Retry ${4 - retries}: Failed to retrieve subscription ${session.subscription}`);
               retries--;
               if (retries === 0) {
@@ -116,9 +105,10 @@ export default async function handler(
               stripe_subscription_id: subscription.id,
               stripe_customer_id: subscription.customer as string,
               status: subscription.status,
+              // Stripe types do not always include these fields, so use (subscription as any)
               current_period_start: safeConvertDate((subscription as any).current_period_start),
               current_period_end: safeConvertDate((subscription as any).current_period_end),
-              cancel_at_period_end: (subscription as any).cancel_at_period_end || false,
+              cancel_at_period_end: (subscription as any).cancel_at_period_end ?? false,
               updated_at: new Date().toISOString()
             }, {
               onConflict: 'user_id'
@@ -140,8 +130,8 @@ export default async function handler(
         const invoice = event.data.object as Stripe.Invoice;
         console.log(`💳 Processing successful payment: ${invoice.id}`);
         
-        if ((invoice as unknown as Stripe.Invoice).subscription) {
-          const subscription = await stripe.subscriptions.retrieve((invoice as unknown as Stripe.Invoice).subscription as string);
+        if ((invoice as any).subscription) {
+          const subscription = await stripe.subscriptions.retrieve((invoice as any).subscription as string);
           const customerId = subscription.customer as string;
           
           // Get user from customer ID
@@ -164,7 +154,7 @@ export default async function handler(
                 plan_type: subData.plan_type,
                 billing_period_start: safeConvertDate(invoice.period_start),
                 billing_period_end: safeConvertDate(invoice.period_end),
-                paid_at: safeConvertDate(invoice.status_transitions.paid_at)
+                paid_at: safeConvertDate(invoice.status_transitions?.paid_at)
               });
 
             if (billingError) {
@@ -183,8 +173,8 @@ export default async function handler(
         const invoice = event.data.object as Stripe.Invoice;
         console.log(`💸 Processing failed payment: ${invoice.id}`);
         
-        if ((invoice as unknown as Stripe.Invoice).subscription) {
-          const subscription = await stripe.subscriptions.retrieve((invoice as unknown as Stripe.Invoice).subscription as string);
+        if ((invoice as any).subscription) {
+          const subscription = await stripe.subscriptions.retrieve((invoice as any).subscription as string);
           const customerId = subscription.customer as string;
           
           // Get user from customer ID
@@ -229,8 +219,8 @@ export default async function handler(
         const invoice = event.data.object as Stripe.Invoice;
         console.log(`⚠️  Payment action required: ${invoice.id}`);
         
-        if ((invoice as unknown as Stripe.Invoice).subscription) {
-          const subscription = await stripe.subscriptions.retrieve((invoice as unknown as Stripe.Invoice).subscription as string);
+        if ((invoice as any).subscription) {
+          const subscription = await stripe.subscriptions.retrieve((invoice as any).subscription as string);
           const customerId = subscription.customer as string;
           
           // Get user from customer ID
@@ -337,22 +327,18 @@ export default async function handler(
     }
 
     console.log(`✅ Webhook ${event.type} processed successfully`);
-    return res === null || res === undefined || typeof res !== 'object' || !('status' in res)
-      ? res
-      : res.status(200).json({ received: true, eventId: event.id });
-  } catch (error: unknown) {
+    return res.status(200).json({ received: true, eventId: event.id });
+  } catch (error) {
     const err = error as Error;
     console.error(`💥 Webhook processing error for ${event.type}:`, err);
     console.error('Stack trace:', err.stack);
     
     // Return 200 to prevent Stripe from retrying (since we've logged the error)
     // In production, you might want to return 500 for retryable errors
-    return res === null || res === undefined || typeof res !== 'object' || !('status' in res)
-      ? res
-      : res.status(200).json({ 
-        received: true, 
-        error: 'Processing failed - manual intervention required',
-        eventId: event.id 
-      });
+    return res.status(200).json({ 
+      received: true, 
+      error: 'Processing failed - manual intervention required',
+      eventId: event.id 
+    });
   }
 } 

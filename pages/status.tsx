@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { supabase } from '../lib/supabase';
 import Link from 'next/link';
@@ -181,7 +181,7 @@ export default function StatusPage() {
     }
   };
 
-  const runAllHealthChecks = async () => {
+  const runAllHealthChecks = useCallback(async () => {
     setIsRefreshing(true);
     const now = new Date();
 
@@ -226,7 +226,7 @@ export default function StatusPage() {
 
     setLastRefresh(now);
     setIsRefreshing(false);
-  };
+  }, [checkSupabaseHealth, checkCodexHealth, checkGatewayHealth, checkAPIHealth]);
 
   useEffect(() => {
     setIsClient(true);
