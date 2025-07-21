@@ -1,9 +1,19 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseServer } from '../../../lib/supabase-server';
 
+// Helper function to detect if request is from a browser
+const isBrowserRequest = (req: NextApiRequest): boolean => {
+  const userAgent = req.headers['user-agent'] || '';
+  const accept = req.headers['accept'] || '';
+  
+  // Check if it's a browser request (not API/programmatic)
+  return accept.includes('text/html') && 
+         (userAgent.includes('Mozilla') || userAgent.includes('Chrome') || userAgent.includes('Safari') || userAgent.includes('Firefox'));
+};
+
 const gatewayHandler = async (req: NextApiRequest, res: NextApiResponse) => {
-  // Only allow GET requests
-  if (req.method !== 'GET') {
+  // Only allow GET and HEAD requests
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
@@ -11,6 +21,10 @@ const gatewayHandler = async (req: NextApiRequest, res: NextApiResponse) => {
 
   // Validate CID parameter
   if (!cid || typeof cid !== 'string') {
+    // If it's a browser request, redirect to our nice error page
+    if (isBrowserRequest(req)) {
+      return res.redirect(302, `/gateway/${cid || 'invalid'}`);
+    }
     return res.status(400).json({ error: 'Invalid or missing CID parameter' });
   }
 
@@ -58,6 +72,12 @@ const gatewayHandler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (!codexResponse.ok) {
       console.error(`Codex API error: ${codexResponse.status} ${codexResponse.statusText}`);
       
+      // If it's a browser request, redirect to our nice error page
+      if (isBrowserRequest(req)) {
+        return res.redirect(302, `/gateway/${cid}`);
+      }
+      
+      // Otherwise return JSON for API clients
       if (codexResponse.status === 400) {
         return res.status(400).json({ error: 'Invalid CID specified' });
       } else if (codexResponse.status === 404) {
@@ -97,7 +117,13 @@ const gatewayHandler = async (req: NextApiRequest, res: NextApiResponse) => {
     res.setHeader('X-Codex-CID', cid);
     res.setHeader('X-Gateway-Type', 'public');
 
-    // Stream the response body
+    // For HEAD requests, only send headers
+    if (req.method === 'HEAD') {
+      res.status(200).end();
+      return;
+    }
+
+    // Stream the response body for GET requests
     if (codexResponse.body) {
       // Convert the ReadableStream to a Node.js readable stream
       const reader = codexResponse.body.getReader();
@@ -126,6 +152,11 @@ const gatewayHandler = async (req: NextApiRequest, res: NextApiResponse) => {
     
     // Check if response was already sent
     if (!res.headersSent) {
+      // If it's a browser request, redirect to our nice error page
+      if (isBrowserRequest(req)) {
+        return res.redirect(302, `/gateway/${cid}`);
+      }
+      
       res.status(500).json({ 
         error: 'Internal server error', 
         message: error instanceof Error ? error.message : 'Unknown error' 

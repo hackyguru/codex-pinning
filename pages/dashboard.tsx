@@ -8,6 +8,7 @@ import { getPlan, type PlanType } from '../lib/plans';
 import { IoKeyOutline } from "react-icons/io5";
 import { LuFiles } from "react-icons/lu";
 import { useToast } from '../components/Toast';
+import Link from 'next/link';
 
 
 interface UploadedFile {
@@ -104,6 +105,9 @@ export default function Dashboard() {
 
   // Testnet modal state
   const [showTestnetModal, setShowTestnetModal] = useState(false);
+
+  // Refresh state
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Coupon code state
   const [couponCode, setCouponCode] = useState('');
@@ -1061,6 +1065,35 @@ export default function Dashboard() {
     return '';
   };
 
+  // Handle dashboard refresh
+  const handleRefresh = async () => {
+    if (isRefreshing) return; // Prevent multiple simultaneous refreshes
+    
+    setIsRefreshing(true);
+    try {
+      // Reload all dashboard data
+      await Promise.all([
+        loadUserData(),
+        loadBillingHistory()
+      ]);
+      
+      showToast({
+        type: 'success',
+        title: 'Dashboard Refreshed',
+        message: 'All data has been updated'
+      });
+    } catch (error) {
+      console.error('Error refreshing dashboard:', error);
+      showToast({
+        type: 'error',
+        title: 'Refresh Failed',
+        message: 'Unable to refresh dashboard data'
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
@@ -1153,9 +1186,11 @@ export default function Dashboard() {
           {/* Left section - Logo and Project Info */}
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3">
+              <Link href="/">
               <div className="w-8 h-8 flex items-center justify-center">
                 <Image src="/white.svg" alt="ThirdStorage" width={20} height={20} className="filter invert" />
               </div>
+              </Link>
               <div className="flex items-center space-x-2">
                 <span className="text-zinc-400">/</span>
                 <span className="text-zinc-400">{getUserEmail()?.split('@')[0] || 'user'}</span>
@@ -1168,22 +1203,46 @@ export default function Dashboard() {
 
           {/* Right section - Search, Actions, User */}
           <div className="flex items-center space-x-4">
-            {/* Testnet Indicator */}
-            <div className="hidden md:flex items-center relative group">
-              <span className="px-2 py-1 text-xs bg-orange-500/10 text-orange-400 border border-orange-500/30 rounded-md font-medium cursor-help">
-                Testnet
-              </span>
-
-              {/* Tooltip */}
-              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-black border border-zinc-700 rounded-md text-xs text-zinc-300 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                Limitations apply,{' '}
-                <button
-                  onClick={() => setShowTestnetModal(true)}
-                  className="text-orange-400 hover:text-orange-300 underline"
-                >
-                  Know more
-                </button>
+                        {/* Testnet Indicator */}
+            <div className="hidden md:flex items-center space-x-2">
+              <div className="relative group">
+                <span className="px-2 py-1 text-xs bg-orange-500/10 text-orange-400 border border-orange-500/30 rounded-md font-medium cursor-help">
+                  Codex Testnet
+                </span>
+                
+                {/* Tooltip */}
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-black border border-zinc-700 rounded-md text-xs text-zinc-300 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                  Limitations apply,{' '}
+                  <button 
+                    onClick={() => setShowTestnetModal(true)}
+                    className="text-orange-400 hover:text-orange-300 underline"
+                  >
+                    Know more
+                  </button>
+                </div>
               </div>
+
+              {/* Refresh Button */}
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="p-1.5 text-zinc-400 hover:text-white transition-colors rounded-md hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Refresh dashboard data"
+              >
+                <svg 
+                  className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                  />
+                </svg>
+              </button>
             </div>
 
             {/* Search */}
@@ -3370,7 +3429,7 @@ fetch('${window.location.origin}/api/upload', {
               </p>
               <button
                 onClick={() => setShowDeleteAccountModal(true)}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors font-medium"
+                className="px-4 py-2 bg-red-500 hover:bg-red-400 text-white rounded-md transition-colors font-medium"
               >
                 Delete Account
               </button>

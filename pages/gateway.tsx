@@ -115,7 +115,7 @@ export default function Gateway() {
           <div className="flex items-center space-x-2 sm:space-x-4">
           <div className="hidden md:flex items-center">
                 <span className="px-2 py-1 text-xs bg-orange-500/10 text-orange-400 border border-orange-500/30 rounded-md font-medium">
-                  Testnet
+                  Codex Testnet
                 </span>
               </div>
             <div className="flex items-center space-x-1 sm:space-x-2">
