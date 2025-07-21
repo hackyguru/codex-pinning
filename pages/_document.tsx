@@ -4,6 +4,11 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
+
+        <title>Third Storage</title>
+        <meta name="description" content="Web3 storage pinning service for developers to build decentralised applications leveraging Decentralised Storage Networks" />
+
+
         <script
           src="https://cdn.databuddy.cc/databuddy.js"
           data-client-id="RSYtwDlso7rAALfPWQjal"
