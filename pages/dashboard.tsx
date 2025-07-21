@@ -9,6 +9,7 @@ import { IoKeyOutline } from "react-icons/io5";
 import { LuFiles } from "react-icons/lu";
 import { useToast } from '../components/Toast';
 import Link from 'next/link';
+import SEO from '../components/SEO';
 
 
 interface UploadedFile {
@@ -1180,6 +1181,12 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      <SEO 
+        title="Dashboard"
+        description="Manage your decentralized storage on ThirdStorage. Upload files, create API keys, monitor usage, and control your storage settings."
+        keywords="file management, storage dashboard, API keys, usage monitoring, file upload"
+        noindex={true}
+      />
       {/* Vercel-inspired Header */}
       <header className="">
         <div className="flex items-center justify-between h-16 px-4 sm:px-6">

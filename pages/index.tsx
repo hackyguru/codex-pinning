@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { getAvailablePlans } from '../lib/plans';
 import Link from 'next/link';
+import SEO from '../components/SEO';
 
 export default function Home() {
   const router = useRouter();
@@ -115,6 +116,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      <SEO 
+        title="Decentralized Storage on Codex Network"
+        description="Store your files on the decentralized Codex network with ThirdStorage. Secure, reliable, and censorship-resistant storage for web3 applications."
+        keywords="decentralized storage, blockchain storage, Codex network, web3 storage, IPFS alternative, distributed storage, file hosting"
+      />
       {/* Header */}
       <header className="border-b border-zinc-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

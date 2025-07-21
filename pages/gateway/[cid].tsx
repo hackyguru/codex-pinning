@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
 import Link from 'next/link';
+import SEO from '../../components/SEO';
 
 interface GatewayError {
   error: string;
@@ -127,6 +128,12 @@ export default function GatewayPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-black text-white">
+        <SEO 
+          title={`Content Access Error - ${getErrorTitle(error.status)}`}
+          description={getErrorDescription(error.error, error.status)}
+          keywords="content access, CID error, decentralized storage error"
+          noindex={true}
+        />
         {/* Header */}
         <header className="border-b border-zinc-800">
           <div className="flex items-center justify-between h-16 px-4 sm:px-6">

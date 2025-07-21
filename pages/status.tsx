@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { supabase } from '../lib/supabase';
 import Link from 'next/link';
+import SEO from '../components/SEO';
 
 interface SystemCheck {
   name: string;
@@ -273,6 +274,11 @@ export default function StatusPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      <SEO 
+        title="System Status"
+        description="Check the real-time status of ThirdStorage services including Codex network connectivity, database health, and API availability."
+        keywords="system status, service health, uptime monitoring, API status, network status"
+      />
       {/* Header */}
       <header className="border-b border-zinc-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

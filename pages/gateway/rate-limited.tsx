@@ -1,10 +1,17 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import SEO from '../../components/SEO';
 
 export default function RateLimitedPage() {
   return (
     <div className="min-h-screen bg-black text-white">
+      <SEO 
+        title="Rate Limit Exceeded"
+        description="You've exceeded the rate limit for gateway access. Learn about our limits and how to increase them."
+        keywords="rate limit, gateway access, request limits"
+        noindex={true}
+      />
       {/* Header */}
       <header className="border-b border-zinc-800">
         <div className="flex items-center justify-between h-16 px-4 sm:px-6">

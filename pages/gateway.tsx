@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { usePrivy } from '@privy-io/react-auth';
 import Image from 'next/image';
+import SEO from '../components/SEO';
 
 export default function Gateway() {
   const router = useRouter();
@@ -104,6 +105,11 @@ export default function Gateway() {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      <SEO 
+        title="Public Gateway - Content Access"
+        description="Access decentralized content through ThirdStorage's public gateway. Retrieve files stored on the Codex network with direct CID access."
+        keywords="public gateway, content access, CID lookup, decentralized content, file retrieval"
+      />
       {/* Header - matching dashboard style */}
       <header className="">
         <div className="flex items-center justify-between h-16 px-4 sm:px-6">
