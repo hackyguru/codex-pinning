@@ -27,10 +27,15 @@ const gatewayHandler = async (req: NextApiRequest, res: NextApiResponse) => {
       console.log(`CID ${cid} not found in database, trying Codex directly`);
     }
 
-    // Use demo-node-1 Codex API credentials (same as storage service)
-    const codexApiUrl = 'https://api.demo.codex.storage/fileshareapp/api/codex/v1';
-    const codexUsername = 'codex';
-    const codexPassword = 'iOpcciMDt2xCJnPrlJ86AaBOrbTzFH';
+    // Get Codex API credentials from environment variables
+    // Required env vars: CODEX_API_URL, CODEX_USERNAME, CODEX_PASSWORD
+    const codexApiUrl = process.env.CODEX_API_URL;
+    const codexUsername = process.env.CODEX_USERNAME;
+    const codexPassword = process.env.CODEX_PASSWORD;
+
+    if (!codexPassword) {
+      return res.status(500).json({ error: 'Storage service configuration missing' });
+    }
 
     // Create basic auth header for Codex API
     const basicAuth = Buffer.from(`${codexUsername}:${codexPassword}`).toString('base64');
