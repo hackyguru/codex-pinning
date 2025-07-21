@@ -328,7 +328,7 @@ export default function Home() {
                               </svg>
                             </div>
                             <div>
-                              <p className="text-sm text-zinc-400 mb-1">API Keys</p>
+                              <p className="text-sm text-zinc-400 mb-1">Pinning Secrets</p>
                               <p className="text-2xl font-semibold text-white">3</p>
                             </div>
                           </div>
@@ -517,7 +517,7 @@ export default function Home() {
                     <div className="flex items-center justify-between">
                       <div>
                         <h1 className="text-2xl font-bold text-white">Pinning Secrets</h1>
-                        <p className="text-zinc-400">Manage API keys for programmatic access</p>
+                        <p className="text-zinc-400">Manage secrets for programmatic access</p>
                       </div>
                       <button className="px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium text-sm">
                         Create Secret

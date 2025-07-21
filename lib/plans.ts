@@ -109,7 +109,7 @@ export const PLANS: Record<PlanType, PlanConfig> = {
       {
         name: 'Priority Support',
         included: true,
-        description: 'Email and chat support with faster response'
+        description: 'Dedicated support on Discord'
       },
       {
         name: 'Advanced Replication',
@@ -165,20 +165,10 @@ export const PLANS: Record<PlanType, PlanConfig> = {
         description: 'Comprehensive analytics and reporting'
       },
       {
-        name: 'Custom SLA',
-        included: true,
-        description: 'Service level agreement tailored to your needs'
-      },
-      {
         name: 'Dedicated Support',
         included: true,
         description: 'Dedicated customer success manager'
       },
-      {
-        name: 'On-premise Options',
-        included: true,
-        description: 'Private cloud and on-premise deployment'
-      }
     ],
     ctaText: 'Contact Sales',
   },

@@ -21,7 +21,7 @@ interface SystemStatus {
 export default function StatusPage() {
   const [systemStatus, setSystemStatus] = useState<SystemStatus>({
     supabase: {
-      name: 'Database (Supabase)',
+      name: 'Indexing',
       status: 'checking',
       responseTime: null,
       lastChecked: null
@@ -195,7 +195,7 @@ export default function StatusPage() {
 
     setSystemStatus({
       supabase: {
-        name: 'Database (Supabase)',
+        name: 'Indexing',
         status: supabaseResult.status,
         responseTime: supabaseResult.responseTime,
         lastChecked: now,

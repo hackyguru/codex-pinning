@@ -2,6 +2,7 @@ import "@/styles/globals.css";
 import type { AppProps } from "next/app";
 import { PrivyProvider } from '@privy-io/react-auth';
 import { Figtree } from 'next/font/google';
+import { ToastProvider } from '../components/Toast';
 
 // Configure Figtree font with stable configuration
 const figtree = Figtree({
@@ -40,7 +41,9 @@ export default function App({ Component, pageProps }: AppProps) {
           }
         }}
       >
-        <Component {...pageProps} />
+        <ToastProvider>
+          <Component {...pageProps} />
+        </ToastProvider>
       </PrivyProvider>
     </main>
   );
