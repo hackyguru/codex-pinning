@@ -120,22 +120,22 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 flex items-center justify-center">
-                <Image src="/white.svg" alt="ThirdStorage" width={30} height={30} className="filter invert" />
+              <div className="w-8 h-8 sm:w-12 sm:h-12 flex items-center justify-center">
+                <Image src="/white.svg" alt="ThirdStorage" width={24} height={24} className="filter invert sm:w-[30px] sm:h-[30px]" />
               </div>
             </div>
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-3 sm:space-x-6">
               <a
                 href="https://docs.thirdstorage.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-zinc-400 hover:text-white transition-colors text-sm font-medium"
+                className="hidden sm:block text-zinc-400 hover:text-white transition-colors text-sm font-medium"
               >
                 Documentation
               </a>
               <button
                 onClick={handleLogin}
-                className="px-6 py-2.5 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-semibold text-sm"
+                className="px-4 py-2 sm:px-6 sm:py-2.5 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-semibold text-sm"
               >
                 Get Started
               </button>
@@ -147,38 +147,38 @@ export default function Home() {
       {/* Hero Section */}
       <main>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="pt-24 pb-20 text-center lg:pt-40">
+          <div className="pt-16 pb-12 sm:pt-24 sm:pb-20 text-center lg:pt-40">
             {/* Badge */}
-            <div className="inline-flex items-center space-x-2 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-full px-4 py-2 mb-8">
+            <div className="inline-flex items-center space-x-2 bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-full px-3 py-1.5 sm:px-4 sm:py-2 mb-6 sm:mb-8">
               <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
-              <span className="text-zinc-300 text-sm font-medium">Alpha - Live on Codex Testnet</span>
+              <span className="text-zinc-300 text-xs sm:text-sm font-medium">Alpha - Live on Codex Testnet</span>
             </div>
 
-            <h1 className="text-5xl font-bold tracking-tight text-white sm:text-7xl lg:text-8xl mb-6">
+            <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-white lg:text-7xl xl:text-8xl mb-4 sm:mb-6">
               <span className="block">Decentralized Storage</span>
-              <span className="block text-zinc-400 mt-2">
+              <span className="block text-zinc-400 mt-1 sm:mt-2">
                 Made Simple
               </span>
             </h1>
 
-            <div className="flex items-center justify-center space-x-8 my-10">
-              <p className="text-lg text-zinc-300 max-w-lg text-right">
+            <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-8 my-6 sm:my-10">
+              <p className="text-base sm:text-lg text-zinc-300 max-w-xs sm:max-w-lg text-center sm:text-right">
               Built for Censorship Resistance
               </p>
-              <div className="w-10 h-10 rounded-full border border-zinc-500 flex items-center justify-center bg-white">
-                <Image src="/black.svg" alt="ThirdStorage" width={20} height={20} className="stroke-zinc-500" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-zinc-500 flex items-center justify-center bg-white flex-shrink-0">
+                <Image src="/black.svg" alt="ThirdStorage" width={16} height={16} className="stroke-zinc-500 sm:w-[20px] sm:h-[20px]" />
               </div>
-              <p className="text-lg text-zinc-300 max-w-lg text-left">
+              <p className="text-base sm:text-lg text-zinc-300 max-w-xs sm:max-w-lg text-center sm:text-left">
               AI Orchestrated Pinning
               </p>
             </div>
 
 
 
-            <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6">
+            <div className="mt-8 sm:mt-12 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 px-4">
               <button
                 onClick={handleLogin}
-                className="px-8 py-4 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-semibold text-lg"
+                className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-semibold text-base sm:text-lg"
               >
                 Start Building Today
               </button>
@@ -186,10 +186,10 @@ export default function Home() {
                 href="https://docs.thirdstorage.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-8 py-4 rounded-md text-black group flex bg-zinc-500 items-center space-x-2  transition-colors font-semibold text-lg"
+                className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-md text-black group flex bg-zinc-500 items-center justify-center space-x-2 transition-colors font-semibold text-base sm:text-lg"
               >
                 <span>Explore Documentation</span>
-                <svg className="w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 transform group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
               </a>
@@ -198,14 +198,14 @@ export default function Home() {
         </div>
           
         {/* Dashboard Demo Preview */}
-        <div className="py-10 bg-zinc-950/50">
+        <div className="py-8 sm:py-10 bg-zinc-950/50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
             {/* Demo Dashboard Container */}
-            <div className="bg-zinc-900/70 backdrop-blur-sm border border-zinc-800/50 rounded-xl overflow-hidden">
+            <div className="bg-zinc-900/70 backdrop-blur-sm border border-zinc-800/50 rounded-lg sm:rounded-xl overflow-hidden">
               {/* Demo Header */}
               <div className="border-b border-zinc-800/50 bg-zinc-900/50">
-                <div className="flex items-center justify-between h-16 px-6">
+                <div className="flex items-center justify-between h-14 sm:h-16 px-4 sm:px-6">
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 flex items-center justify-center">
@@ -229,7 +229,7 @@ export default function Home() {
                         type="text"
                         placeholder="Search a CID"
                         disabled
-                        className="block w-64 pl-10 pr-16 py-2 border border-zinc-700 rounded-md bg-zinc-900 text-zinc-300 placeholder-zinc-500 text-sm opacity-60"
+                        className="block w-48 sm:w-64 pl-10 pr-16 py-2 border border-zinc-700 rounded-md bg-zinc-900 text-zinc-300 placeholder-zinc-500 text-sm opacity-60"
                       />
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg className="h-4 w-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -243,24 +243,26 @@ export default function Home() {
 
               {/* Demo Navigation */}
               <nav className="border-b border-zinc-800/50 bg-zinc-900/30">
-                <div className="flex space-x-8 px-6">
+                <div className="flex space-x-4 sm:space-x-8 px-4 sm:px-6 overflow-x-auto">
                   {[
                     { id: 'overview', label: 'Overview' },
                     { id: 'storage', label: 'Storage' },
                     { id: 'gateway', label: 'Gateway' },
-                    { id: 'secrets', label: 'Pinning Secrets' },
+                    { id: 'secrets', label: 'Secrets', fullLabel: 'Pinning Secrets' },
                     { id: 'payments', label: 'Payments' }
                   ].map((item) => (
                     <button
                       key={item.id}
                       onClick={() => setActiveTab(item.id)}
-                      className={`relative py-4 text-sm font-medium transition-colors ${
+                      className={`relative py-3 sm:py-4 text-sm font-medium transition-colors whitespace-nowrap ${
                         activeTab === item.id
                           ? 'text-white'
                           : 'text-zinc-400 hover:text-zinc-300'
                       }`}
+                      title={item.fullLabel || item.label}
                     >
-                      {item.label}
+                      <span className="hidden sm:inline">{item.fullLabel || item.label}</span>
+                      <span className="sm:hidden">{item.label}</span>
                       {activeTab === item.id && (
                         <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white"></div>
                       )}
@@ -270,7 +272,7 @@ export default function Home() {
               </nav>
 
                              {/* Demo Content */}
-               <div className="p-6 h-[600px] overflow-y-auto">
+               <div className="p-4 sm:p-6 h-[400px] sm:h-[600px] overflow-y-auto">
                 {activeTab === 'overview' && (
                   <div className="space-y-6">
                     {/* Demo Stats Cards */}
@@ -648,19 +650,19 @@ export default function Home() {
         </div>
 
         {/* Interactive Bento Feature Grid */}
-        <div className="py-32 bg-zinc-900/30">
+        <div className="py-16 sm:py-24 lg:py-32 bg-zinc-900/30">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-20">
-              <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl mb-6">
+            <div className="text-center mb-12 sm:mb-16 lg:mb-20">
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white lg:text-5xl mb-4 sm:mb-6">
                 Why Choose ThirdStorage?
               </h2>
-              <p className="text-xl text-zinc-400 max-w-3xl mx-auto leading-relaxed">
+              <p className="text-lg sm:text-xl text-zinc-400 max-w-2xl sm:max-w-3xl mx-auto leading-relaxed px-4">
                 Built on cutting-edge decentralized technology with enterprise-grade reliability. 
                 Experience the future of data storage today.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {/* Open Source - Interactive GitHub stats */}
               <div className="group relative bg-zinc-900/50 backdrop-blur-sm border border-zinc-800/50 rounded-lg p-6 hover:border-zinc-700/80 transition-all duration-500 hover:bg-zinc-900/70 overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-zinc-800/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -851,40 +853,40 @@ export default function Home() {
         </div>
 
         {/* Pricing Preview */}
-        <div className="py-10">
+        <div className="py-8 sm:py-10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl mb-6">
+            <div className="text-center mb-12 sm:mb-16">
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white lg:text-5xl mb-4 sm:mb-6">
                 Simple, Transparent Pricing
               </h2>
-              <p className="text-xl text-zinc-400">
+              <p className="text-lg sm:text-xl text-zinc-400 px-4">
                 Start free and scale as you grow. No hidden fees, ever.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mb-12 sm:mb-16">
               {getAvailablePlans().map((plan) => (
                 <div 
                   key={plan.id}
-                  className={`bg-zinc-900/50 backdrop-blur-sm border rounded-lg p-8 relative ${
+                  className={`bg-zinc-900/50 backdrop-blur-sm border rounded-lg p-6 sm:p-8 relative ${
                     plan.popular 
                       ? 'border-zinc-700/80' 
                       : 'border-zinc-800/50'
                   }`}
                 >
                   {plan.badge && (
-                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                      <span className="bg-white text-black px-4 py-1 rounded-full text-sm font-bold">
+                    <div className="absolute -top-3 sm:-top-4 left-1/2 transform -translate-x-1/2">
+                      <span className="bg-white text-black px-3 py-1 sm:px-4 rounded-full text-xs sm:text-sm font-bold">
                         {plan.badge}
                       </span>
                     </div>
                   )}
                   <div className="text-center">
-                    <h3 className="text-2xl font-bold text-white mb-2">{plan.name}</h3>
-                    <div className="text-4xl font-bold text-white mb-4">
+                    <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">{plan.name}</h3>
+                    <div className="text-3xl sm:text-4xl font-bold text-white mb-4">
                       {plan.price.formatted}
                       {plan.id !== 'enterprise' && (
-                        <span className="text-lg text-zinc-400">/month</span>
+                        <span className="text-base sm:text-lg text-zinc-400">/month</span>
                       )}
                     </div>
                     <p className={`mb-8 ${plan.popular ? 'text-zinc-300' : 'text-zinc-400'}`}>

@@ -97,6 +97,9 @@ export default function Dashboard() {
   const [newDomain, setNewDomain] = useState('');
   const [isExportingData, setIsExportingData] = useState(false);
 
+  // Testnet modal state
+  const [showTestnetModal, setShowTestnetModal] = useState(false);
+
   // Coupon code state
   const [couponCode, setCouponCode] = useState('');
   const [couponValidation, setCouponValidation] = useState<{
@@ -838,6 +841,18 @@ export default function Dashboard() {
     window.open(gatewayUrl, '_blank');
   };
 
+  // Handle copying CID to clipboard
+  const handleCopyCID = async (cid: string) => {
+    try {
+      await navigator.clipboard.writeText(cid);
+      // Could add a toast notification here
+      alert('CID copied to clipboard!');
+    } catch (error) {
+      console.error('Failed to copy CID:', error);
+      alert('Failed to copy CID to clipboard');
+    }
+  };
+
   // Handle search submission
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1044,14 +1059,25 @@ export default function Dashboard() {
             {/* Right section - Search, Actions, User */}
             <div className="flex items-center space-x-4">
               {/* Testnet Indicator */}
-              <div className="hidden md:flex items-center">
-                <span className="px-2 py-1 text-xs bg-orange-500/10 text-orange-400 border border-orange-500/30 rounded-md font-medium">
+              <div className="hidden md:flex items-center relative group">
+                <span className="px-2 py-1 text-xs bg-orange-500/10 text-orange-400 border border-orange-500/30 rounded-md font-medium cursor-help">
                   Testnet
                 </span>
+                
+                {/* Tooltip */}
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-black border border-zinc-700 rounded-md text-xs text-zinc-300 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                  Limitations apply,{' '}
+                  <button 
+                    onClick={() => setShowTestnetModal(true)}
+                    className="text-orange-400 hover:text-orange-300 underline"
+                  >
+                    Know more
+                  </button>
+                </div>
               </div>
               
               {/* Search */}
-              <div className="hidden md:flex items-center">
+              <div className="hidden lg:flex items-center">
                 <form onSubmit={handleSearch} className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <svg className="h-4 w-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1064,7 +1090,7 @@ export default function Dashboard() {
                     placeholder="Search a CID"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="block w-64 pl-10 pr-16 py-2 border border-zinc-700 rounded-md bg-zinc-900 text-zinc-300 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-600 focus:border-zinc-600 text-sm"
+                    className="block w-48 xl:w-64 pl-10 pr-16 py-2 border border-zinc-700 rounded-md bg-zinc-900 text-zinc-300 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-600 focus:border-zinc-600 text-sm"
                   />
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center space-x-1">
                     <kbd className="inline-flex items-center px-1.5 py-0.5 rounded border border-zinc-600 bg-zinc-800 text-zinc-400 text-xs">
@@ -1075,7 +1101,7 @@ export default function Dashboard() {
               </div>
 
               {/* Actions */}
-              <div className="flex items-center space-x-2">
+              <div className="hidden sm:flex items-center space-x-2">
                 <a
                   href='https://docs.thirdstorage.com'
                   target='_blank'
@@ -1103,12 +1129,12 @@ export default function Dashboard() {
 
               {/* Vercel-inspired Navigation */}
         <nav className="border-b border-zinc-800">
-          <div className="flex space-x-8 px-4 sm:px-6">
+          <div className="flex space-x-4 sm:space-x-6 lg:space-x-8 px-4 sm:px-6 overflow-x-auto">
             {navigationItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveSection(item.id as 'overview' | 'files' | 'replication' | 'secrets' | 'gateway' | 'migrations' | 'payments' | 'settings')}
-                className={`relative py-4 text-sm font-medium transition-colors ${
+                className={`relative py-3 sm:py-4 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                   item.isActive
                     ? 'text-white'
                     : 'text-zinc-400 hover:text-zinc-300'
@@ -1628,14 +1654,26 @@ fetch('${window.location.origin}/api/upload', {
                          file.status === 'uploading' ? 'Uploading' : 'Error'}
                       </span>
                     </div>
-                    {file.status === 'uploaded' && (
-                                              <div className="mt-3 pt-3 border-t border-zinc-800">
+                                        {file.status === 'uploaded' && (
+                      <div className="mt-3 pt-3 border-t border-zinc-800 space-y-2">
                         <button
                           onClick={() => handleViewContent(file.cid)}
                           className="w-full text-xs text-zinc-400 hover:text-white transition-colors text-left"
                         >
                           View content →
                         </button>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-zinc-500 font-mono truncate">{file.cid.slice(0, 12)}...</span>
+                          <button
+                            onClick={() => handleCopyCID(file.cid)}
+                            className="p-1 text-zinc-400 hover:text-white transition-colors"
+                            title="Copy CID"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1671,9 +1709,18 @@ fetch('${window.location.origin}/api/upload', {
                             {file.status === 'uploaded' ? 'Pinned' : 
                              file.status === 'uploading' ? 'Uploading' : 'Error'}
                           </span>
-                          {file.status === 'uploaded' && (
+                                                    {file.status === 'uploaded' && (
                             <div className="flex items-center space-x-1">
-                        <button
+                              <button
+                                onClick={() => handleCopyCID(file.cid)}
+                                className="p-1 text-zinc-400 hover:text-white transition-colors"
+                                title="Copy CID"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                              </button>
+                              <button
                                 onClick={() => handleViewContent(file.cid)}
                                 className="p-1 text-zinc-400 hover:text-white transition-colors"
                                 title="View content"
@@ -1688,11 +1735,11 @@ fetch('${window.location.origin}/api/upload', {
                                 title="Delete"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
                             </div>
-                      )}
+                          )}
                     </div>
                   </div>
                 </div>
@@ -2729,6 +2776,47 @@ fetch('${window.location.origin}/api/upload', {
                     </p>
                   </div>
 
+                  {/* Pinned replications */}
+                  <div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-zinc-400">Pinned replications</span>
+                      <span className="text-zinc-500 text-xs">Coming soon</span>
+                    </div>
+                    <div className="w-full bg-zinc-800/50 rounded-full h-2">
+                      <div className="h-2 bg-zinc-600 rounded-full transition-all duration-500 w-0"></div>
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-1">
+                      Replication monitoring and analytics are being developed
+                    </p>
+                  </div>
+
+                  {/* Unpinned files */}
+                  <div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-zinc-400">Unpinned files</span>
+                      <span className="text-zinc-500 text-xs">Coming soon</span>
+                    </div>
+                    <div className="w-full bg-zinc-800/50 rounded-full h-2">
+                      <div className="h-2 bg-zinc-600 rounded-full transition-all duration-500 w-0"></div>
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-1">
+                      Tracking for unpinned file usage is in development
+                    </p>
+                  </div>
+
+                  {/* Pay as you go usage */}
+                  <div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-zinc-400">Pay as you go usage</span>
+                      <span className="text-zinc-500 text-xs">Coming soon</span>
+                    </div>
+                    <div className="w-full bg-zinc-800/50 rounded-full h-2">
+                      <div className="h-2 bg-zinc-600 rounded-full transition-all duration-500 w-0"></div>
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-1">
+                      Pay-per-use billing system is being implemented
+                    </p>
+                  </div>
 
                 </div>
               </div>
@@ -3439,6 +3527,59 @@ fetch('${window.location.origin}/api/upload', {
                 className="w-full px-4 py-2 bg-white text-black rounded-md hover:bg-zinc-100 transition-colors font-medium"
               >
                 Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Testnet Limitations Modal */}
+      {showTestnetModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h3 className="text-lg sm:text-xl font-semibold text-white">Codex Testnet Limitations</h3>
+              <button
+                onClick={() => setShowTestnetModal(false)}
+                className="text-zinc-400 hover:text-white transition-colors flex-shrink-0"
+              >
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-3 sm:space-y-4 text-zinc-300 text-xs sm:text-sm">
+              <div className="space-y-3">
+                <div className="flex items-start space-x-3">
+                  <span className="text-orange-400 mt-1">•</span>
+                  <p>Files automatically get deleted when epoch / storage limit reaches in the testnet.</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <span className="text-orange-400 mt-1">•</span>
+                  <p>The Codex testnet is currently not incentivized meaning that there are no monetary incentives for running a Codex node.</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <span className="text-orange-400 mt-1">•</span>
+                  <p>Codex marketplace is currently not implemented in the Alpha version of Codex Storage.</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <span className="text-orange-400 mt-1">•</span>
+                  <p>ThirdStorage gateway works on a public goods model. Hence, frequent downtimes are expected due to unavailability of resolver nodes.</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <span className="text-orange-400 mt-1">•</span>
+                  <p>Third Storage does not provide any liability or availability guarantees for the files during testnet. However, the enterprise plan allows production ready use cases upon request. Please reach out to the Third Storage team for more information.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-4 sm:mt-6">
+              <button
+                onClick={() => setShowTestnetModal(false)}
+                className="w-full px-3 py-2 sm:px-4 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors font-medium text-sm sm:text-base"
+              >
+                Understood
               </button>
             </div>
           </div>
