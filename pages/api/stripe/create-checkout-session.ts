@@ -147,7 +147,7 @@ const createCheckoutHandler = withAuth(async (req, res) => {
     
     // Provide more specific error messages
     if (error instanceof Error) {
-      if (error.type === 'StripeInvalidRequestError') {
+      if ((error as any).type === 'StripeInvalidRequestError') {
         return res.status(400).json({ 
           error: 'Invalid checkout configuration. Please try again or contact support.',
           details: error.message 

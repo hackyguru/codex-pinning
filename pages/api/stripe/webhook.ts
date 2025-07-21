@@ -274,7 +274,7 @@ export default async function handler(
         }
 
         // If subscription is marked for cancellation, update subscription to free
-        if (subData && (subscription as any).cancel_at_period_end) {
+        if (subData && subscription.cancel_at_period_end) {
           await supabaseServer
             .from('subscriptions')
             .update({ 

@@ -18,6 +18,14 @@ interface UploadedFile {
   originalId?: string; // For database files
 }
 
+interface CouponDiscount {
+  formattedOriginalPrice: string;
+  formattedDiscountAmount: string;
+  formattedFinalPrice: string;
+  duration?: string;
+  durationInMonths?: number;
+}
+
 interface PinningSecret {
   id: string;
   name: string;
@@ -94,7 +102,7 @@ export default function Dashboard() {
   const [couponValidation, setCouponValidation] = useState<{
     isValidating: boolean;
     isValid: boolean;
-    discount: any;
+    discount: CouponDiscount | null;
     error: string | null;
   }>({
     isValidating: false,
@@ -317,7 +325,7 @@ export default function Dashboard() {
       }
       const data = await response.json();
       setBillingHistory(data.billingHistory || []);
-    } catch (error) {
+    } catch {
       setBillingError('Failed to load billing history');
       setBillingHistory([]);
     } finally {
@@ -359,7 +367,7 @@ export default function Dashboard() {
   };
 
   // Load user stats and files from database
-  const loadUserData = async () => {
+  const loadUserData = useCallback(async () => {
     if (!user?.id) return;
     
     try {
@@ -420,7 +428,7 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error loading user data:', error);
     }
-  };
+  }, [user?.id, getAccessToken]);
 
   // Add allowed domain
   const handleAddDomain = async () => {
@@ -759,17 +767,17 @@ export default function Dashboard() {
             
             // Reload user data to update stats and file list
             await loadUserData();
-          } else {
-            const error = await response.json();
+                  } else {
+          const errorData = await response.json();
+          
+          // Handle storage limit exceeded
+          if (response.status === 413) {
+            alert(errorData.message || 'Storage limit exceeded');
+          }
             
-            // Handle storage limit exceeded
-            if (response.status === 413) {
-              alert(error.message || 'Storage limit exceeded');
-            }
-            
-            setUploadedFiles(prev => prev.map(f => 
-              f.id === uploadId 
-                ? { ...f, status: 'error' as const, error: error.error || 'Upload failed' }
+                      setUploadedFiles(prev => prev.map(f => 
+            f.id === uploadId 
+              ? { ...f, status: 'error' as const, error: errorData.error || 'Upload failed' }
                 : f
             ));
           }
@@ -1099,7 +1107,7 @@ export default function Dashboard() {
             {navigationItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => setActiveSection(item.id as any)}
+                onClick={() => setActiveSection(item.id as 'overview' | 'files' | 'replication' | 'secrets' | 'gateway' | 'migrations' | 'payments' | 'settings')}
                 className={`relative py-4 text-sm font-medium transition-colors ${
                   item.isActive
                     ? 'text-white'
@@ -1335,7 +1343,7 @@ export default function Dashboard() {
                       ].map((tab) => (
               <button
                           key={tab.id}
-                          onClick={() => setSelectedCodeExample(tab.id as any)}
+                          onClick={() => setSelectedCodeExample(tab.id as 'curl' | 'javascript' | 'python' | 'node')}
                           className={`flex-1 px-3 py-2 text-xs font-medium rounded-md transition-colors ${
                             selectedCodeExample === tab.id
                               ? 'bg-white text-black'

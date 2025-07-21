@@ -49,7 +49,7 @@ export default function Gateway() {
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorMessage;
-        } catch (e) {
+        } catch {
           errorMessage = response.statusText || 'Unknown error';
         }
 

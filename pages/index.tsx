@@ -619,7 +619,7 @@ export default function Home() {
                               <div className="h-2 bg-zinc-700 rounded-full" style={{ width: '0%' }}></div>
                             </div>
                             <div className="text-xs text-zinc-500 mt-1">
-                              We're working on implementing usage tracking for private egress
+                              We&apos;re working on implementing usage tracking for private egress
                             </div>
                           </div>
                         </div>
@@ -773,8 +773,8 @@ export default function Home() {
                   </p>
                                      <div className="bg-zinc-800/50 rounded-lg p-4 font-mono text-sm transition-all duration-500">
                      <div className="text-zinc-600 group-hover:text-emerald-400 transition-colors duration-500">curl -X POST \\</div>
-                     <div className="text-zinc-600 group-hover:text-zinc-300 ml-2 transition-colors duration-500">-H "Authorization: Bearer $API_KEY" \\</div>
-                     <div className="text-zinc-600 group-hover:text-zinc-300 ml-2 transition-colors duration-500">-F "file=@myfile.jpg" \\</div>
+                     <div className="text-zinc-600 group-hover:text-zinc-300 ml-2 transition-colors duration-500">-H &quot;Authorization: Bearer $API_KEY&quot; \\</div>
+                                            <div className="text-zinc-600 group-hover:text-zinc-300 ml-2 transition-colors duration-500">-F &quot;file=@myfile.jpg&quot; \\</div>
                      <div className="text-zinc-600 group-hover:text-zinc-300 ml-2 transition-colors duration-500">https://api.thirdstorage.com/pin</div>
                    </div>
                 </div>

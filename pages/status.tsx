@@ -51,7 +51,7 @@ export default function StatusPage() {
   const [isClient, setIsClient] = useState(false);
 
   // Health check functions
-  const checkSupabaseHealth = async (): Promise<{ status: 'healthy' | 'unhealthy', responseTime: number, error?: string }> => {
+  const checkSupabaseHealth = useCallback(async (): Promise<{ status: 'healthy' | 'unhealthy', responseTime: number, error?: string }> => {
     const startTime = Date.now();
     try {
       const { error } = await supabase
@@ -78,9 +78,9 @@ export default function StatusPage() {
         error: `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
       };
     }
-  };
+  }, []);
 
-  const checkCodexHealth = async (): Promise<{ status: 'healthy' | 'unhealthy', responseTime: number, error?: string }> => {
+  const checkCodexHealth = useCallback(async (): Promise<{ status: 'healthy' | 'unhealthy', responseTime: number, error?: string }> => {
     const startTime = Date.now();
     try {
       const controller = new AbortController();
@@ -113,7 +113,7 @@ export default function StatusPage() {
         error: error instanceof Error ? error.message : 'Network timeout' 
       };
     }
-  };
+  }, []);
 
   const checkGatewayHealth = async (): Promise<{ status: 'healthy' | 'unhealthy', responseTime: number, error?: string }> => {
     const startTime = Date.now();
