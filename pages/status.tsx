@@ -393,7 +393,7 @@ export default function StatusPage() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center space-y-3 sm:space-y-0 sm:space-x-6">
             <a
-              href="https://docs.thirdstorage.com"
+              href="https://docs.thirdstorage.cloud"
               target="_blank"
               rel="noopener noreferrer"
               className="text-zinc-400 hover:text-white transition-colors text-xs sm:text-sm font-medium"

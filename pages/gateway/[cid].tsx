@@ -215,7 +215,7 @@ export default function GatewayPage() {
 
             {/* Help Text */}
             <div className="mt-8 text-xs text-zinc-500">
-              <p>Need help? Check our <a href="https://docs.thirdstorage.com" target="_blank" className="text-zinc-400 hover:text-white underline">documentation</a> for more information about CIDs and content access.</p>
+              <p>Need help? Check our <a href="https://docs.thirdstorage.cloud" target="_blank" className="text-zinc-400 hover:text-white underline">documentation</a> for more information about CIDs and content access.</p>
             </div>
           </div>
         </div>

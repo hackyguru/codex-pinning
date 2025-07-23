@@ -139,7 +139,7 @@ export default function Home() {
               </span>
                 </Link>
               <a
-                href="https://docs.thirdstorage.com"
+                href="https://docs.thirdstorage.cloud"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hidden sm:block text-zinc-400 hover:text-white transition-colors text-sm font-medium"
@@ -196,7 +196,7 @@ export default function Home() {
                 Start Building Today
               </button>
               <a
-                href="https://docs.thirdstorage.com"
+                href="https://docs.thirdstorage.cloud"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-md text-black group flex bg-zinc-500 items-center justify-center space-x-2 transition-colors font-semibold text-base sm:text-lg"
@@ -210,8 +210,29 @@ export default function Home() {
           </div>
         </div>
           
-        {/* Dashboard Demo Preview */}
-        <div className="py-8 sm:py-10 bg-zinc-950/50">
+        {/* YouTube Video for Mobile */}
+        <div className="block sm:hidden py-8 bg-zinc-950/50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2">See ThirdStorage in Action</h2>
+              <p className="text-zinc-400">Watch how easy it is to get started</p>
+            </div>
+            <div className="bg-zinc-900/70 backdrop-blur-sm border border-zinc-800/50 rounded-lg overflow-hidden">
+              <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                <iframe
+                  src="https://www.youtube.com/embed/9rH5PHYUWFo"
+                  title="ThirdStorage Demo"
+                  className="absolute top-0 left-0 w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Dashboard Demo Preview - Desktop Only */}
+        <div className="hidden sm:block py-8 sm:py-10 bg-zinc-950/50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
             {/* Demo Dashboard Container */}
@@ -790,7 +811,7 @@ export default function Home() {
                      <div className="text-zinc-600 group-hover:text-emerald-400 transition-colors duration-500">curl -X POST \\</div>
                      <div className="text-zinc-600 group-hover:text-zinc-300 ml-2 transition-colors duration-500">-H &quot;Authorization: Bearer $API_KEY&quot; \\</div>
                                             <div className="text-zinc-600 group-hover:text-zinc-300 ml-2 transition-colors duration-500">-F &quot;file=@myfile.jpg&quot; \\</div>
-                     <div className="text-zinc-600 group-hover:text-zinc-300 ml-2 transition-colors duration-500">https://api.thirdstorage.com/pin</div>
+                     <div className="text-zinc-600 group-hover:text-zinc-300 ml-2 transition-colors duration-500">https://thirdstorage.cloud/api/pin</div>
                    </div>
                 </div>
               </div>
@@ -946,7 +967,7 @@ export default function Home() {
                   Start Free Trial
                 </button>
                 <a
-                  href="https://docs.thirdstorage.com"
+                  href="https://docs.thirdstorage.cloud"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-10 py-4 bg-zinc-800 text-zinc-300 border border-zinc-700 rounded-md hover:bg-zinc-700 hover:text-white transition-colors font-semibold text-lg"
@@ -957,33 +978,8 @@ export default function Home() {
               
               {/* Authentication options */}
               <div className="pt-8 border-t border-zinc-800">
-                <p className="text-sm text-zinc-500 mb-6">Connect with your preferred method</p>
-                <div className="flex items-center justify-center space-x-8">
-                  <div className="flex items-center space-x-2 text-zinc-400 hover:text-zinc-300 transition-colors cursor-pointer">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-                    </svg>
-                    <span className="text-sm">Email</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-zinc-400 hover:text-zinc-300 transition-colors cursor-pointer">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                    </svg>
-                    <span className="text-sm">Social</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-zinc-400 hover:text-zinc-300 transition-colors cursor-pointer">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    <span className="text-sm">Wallet</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-zinc-400 hover:text-zinc-300 transition-colors cursor-pointer">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 12H9v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4c0-7.2 5.3-13.2 12.5-12.5A6 6 0 0115 7z" />
-                    </svg>
-                    <span className="text-sm">Passkey</span>
-                  </div>
-                </div>
+                <p className="text-sm text-zinc-500 mb-6">Third Storage is currently in public alpha. Do not use for production level usage without consulting our team</p>
+
               </div>
             </div>
           </div>
@@ -1001,7 +997,7 @@ export default function Home() {
               </div>
               <div className="flex items-center space-x-8">
                 <a
-                  href="https://docs.thirdstorage.com"
+                  href="https://docs.thirdstorage.cloud"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-zinc-400 hover:text-white transition-colors text-sm font-medium"

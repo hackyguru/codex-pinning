@@ -1061,7 +1061,7 @@ export default function Dashboard() {
 
   const getGatewayUrl = () => {
     if (typeof window !== 'undefined' && gatewayCid.trim()) {
-      return `${window.location.origin}/api/gateway/${gatewayCid.trim()}`;
+      return `https://thirdstorage.cloud/api/gateway/${gatewayCid.trim()}`;
     }
     return '';
   };
@@ -1278,7 +1278,7 @@ export default function Dashboard() {
             {/* Actions */}
             <div className="hidden sm:flex items-center space-x-2">
               <a
-                href='https://docs.thirdstorage.com'
+                href='https://docs.thirdstorage.cloud'
                 target='_blank'
                 className="px-3 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-md transition-colors"
               >
@@ -1557,13 +1557,13 @@ export default function Dashboard() {
                         <button
                           onClick={() => {
                             const codeSnippets = {
-                              curl: `curl -X POST "${window.location.origin}/api/upload" \\
+                              curl: `curl -X POST "https://thirdstorage.cloud/api/upload" \\
   -H "Authorization: Bearer YOUR_PINNING_SECRET" \\
   -F "file=@/path/to/your/file.jpg"`,
                               javascript: `const formData = new FormData();
 formData.append('file', fileInput.files[0]);
 
-fetch('${window.location.origin}/api/upload', {
+fetch('https://thirdstorage.cloud/api/upload', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer YOUR_PINNING_SECRET'
@@ -1574,7 +1574,7 @@ fetch('${window.location.origin}/api/upload', {
 .then(data => console.log(data));`,
                               python: `import requests
 
-url = "${window.location.origin}/api/upload"
+url = "https://thirdstorage.cloud/api/upload"
 headers = {"Authorization": "Bearer YOUR_PINNING_SECRET"}
 files = {"file": open("/path/to/your/file.jpg", "rb")}
 
@@ -1583,7 +1583,7 @@ print(response.json())`,
                               node: `const form = new FormData();
 form.append('file', fs.createReadStream('/path/to/your/file.jpg'));
 
-fetch('${window.location.origin}/api/upload', {
+fetch('https://thirdstorage.cloud/api/upload', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer YOUR_PINNING_SECRET',
@@ -3158,13 +3158,13 @@ fetch('${window.location.origin}/api/upload', {
                       <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      Priority support
+                      Rate-limited dedicated gateways
                     </div>
                     <div className="flex items-center text-zinc-300">
                       <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      Advanced replication
+                      AI powered replication
                     </div>
                   </div>
                   <div className="mt-auto">
@@ -3218,7 +3218,7 @@ fetch('${window.location.origin}/api/upload', {
                       <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      SLA guarantees
+                      Dedicated gateways
                     </div>
                     <div className="flex items-center text-zinc-300">
                       <svg className="w-4 h-4 mr-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

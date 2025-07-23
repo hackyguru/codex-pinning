@@ -81,7 +81,7 @@ export default function Gateway() {
 
   const getGatewayUrl = () => {
     if (typeof window !== 'undefined' && cid.trim()) {
-      return `${window.location.origin}/api/gateway/${cid.trim()}`;
+      return `https://thirdstorage.cloud/api/gateway/${cid.trim()}`;
     }
     return '';
   };
@@ -138,7 +138,7 @@ export default function Gateway() {
               </div>
             <div className="flex items-center space-x-1 sm:space-x-2">
               <a
-                href='https://docs.thirdstorage.com'
+                href='https://docs.thirdstorage.cloud'
                 target='_blank'
                 className="hidden sm:block px-3 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-md transition-colors"
               >
